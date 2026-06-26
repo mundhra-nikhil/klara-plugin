@@ -68,6 +68,9 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new (require("webpack").DefinePlugin)({
+        "process.env.API_BASE_URL": JSON.stringify(process.env.API_BASE_URL || "http://localhost:8000/api/v1"),
+      }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",
@@ -94,6 +97,7 @@ module.exports = async (env, options) => {
       }),
     ],
     devServer: {
+      hot: false,
       headers: {
         "Access-Control-Allow-Origin": "*",
       },

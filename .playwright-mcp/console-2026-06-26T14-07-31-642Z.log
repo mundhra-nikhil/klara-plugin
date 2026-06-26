@@ -1,0 +1,180 @@
+[     204ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/polyfill.js:2802
+[     206ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/polyfill.js:4258
+[     321ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/taskpane.js:39901
+[     322ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/taskpane.js:41357
+[     344ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ https://localhost:3000/taskpane.js:33293
+[     371ms] ReferenceError: process is not defined
+    at ./src/taskpane/api/client.ts (https://localhost:3000/taskpane.js:423:16)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47605:32)
+    at fn (https://localhost:3000/taskpane.js:47834:21)
+    at ./src/taskpane/api/qc.ts (https://localhost:3000/taskpane.js:532:65)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47605:32)
+    at fn (https://localhost:3000/taskpane.js:47834:21)
+    at ./src/taskpane/components/TaskPane.tsx (https://localhost:3000/taskpane.js:1590:65)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47605:32)
+    at fn (https://localhost:3000/taskpane.js:47834:21)
+    at ./src/taskpane/index.tsx (https://localhost:3000/taskpane.js:2309:78)
+[     438ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://localhost:3000/favicon.ico:0
+[   23522ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/polyfill.js:2802
+[   23523ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/taskpane.js:39901
+[   24004ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/polyfill.js:2802
+[   24005ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/polyfill.js:4258
+[   24006ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/taskpane.js:39901
+[   24007ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/taskpane.js:41357
+[   24034ms] [WARNING] [HMR] Update failed: Loading hot update chunk polyfill failed.
+(missing: https://localhost:3000/polyfill.8f476dc41492814b23b1.hot-update.js)
+ChunkLoadError
+    at https://localhost:3000/polyfill.js:31089:26
+    at new Promise (<anonymous>)
+    at loadUpdateChunk (https://localhost:3000/polyfill.js:31084:20)
+    at https://localhost:3000/polyfill.js:31571:29
+    at Array.forEach (<anonymous>)
+    at __webpack_require__.hmrC.jsonp (https://localhost:3000/polyfill.js:31566:22)
+    at https://localhost:3000/polyfill.js:30896:47
+    at Array.reduce (<anonymous>)
+    at https://localhost:3000/polyfill.js:30892:55 @ https://localhost:3000/polyfill.js:4260
+[   24040ms] [LOG] [HMR] Nothing hot updated. @ https://localhost:3000/taskpane.js:41357
+[   24041ms] [LOG] [HMR] App is up to date. @ https://localhost:3000/taskpane.js:41357
+[   35918ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/polyfill.js:2802
+[   35919ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/taskpane.js:39901
+[   36520ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/polyfill.js:2802
+[   36521ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/taskpane.js:39901
+[   36521ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/taskpane.js:41357
+[   36632ms] [WARNING] [HMR] Cannot apply update. Need to do a full reload! @ https://localhost:3000/taskpane.js:41359
+[   36632ms] [WARNING] [HMR] Error: Aborted because ./src/taskpane/index.tsx is not accepted
+Update propagation: ./src/taskpane/index.tsx
+    at applyHandler (https://localhost:3000/taskpane.js:48401:31)
+    at https://localhost:3000/taskpane.js:48086:21
+    at Array.map (<anonymous>)
+    at internalApply (https://localhost:3000/taskpane.js:48085:15)
+    at https://localhost:3000/taskpane.js:48054:26
+    at waitForBlockingPromises (https://localhost:3000/taskpane.js:48005:48)
+    at https://localhost:3000/taskpane.js:48052:24 @ https://localhost:3000/taskpane.js:41359
+[   36676ms] [ERROR] Refused to apply style from 'https://localhost:3000/%3C%=%20require('html-loader!./taskpane.css')%20%%3E' because its MIME type ('text/html') is not a supported stylesheet MIME type, and strict MIME checking is enabled. @ https://localhost:3000/taskpane.html:0
+[   36936ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/polyfill.js:2802
+[   36939ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/polyfill.js:4258
+[   37073ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/taskpane.js:39899
+[   37075ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/taskpane.js:41355
+[   37113ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ https://localhost:3000/taskpane.js:33291
+[   37142ms] ReferenceError: process is not defined
+    at ./src/taskpane/api/client.ts (https://localhost:3000/taskpane.js:423:16)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47592:32)
+    at fn (https://localhost:3000/taskpane.js:47821:21)
+    at ./src/taskpane/api/qc.ts (https://localhost:3000/taskpane.js:532:65)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47592:32)
+    at fn (https://localhost:3000/taskpane.js:47821:21)
+    at ./src/taskpane/components/TaskPane.tsx (https://localhost:3000/taskpane.js:1590:65)
+    at __webpack_require__ (https://localhost:3000/taskpane.js:47592:32)
+    at fn (https://localhost:3000/taskpane.js:47821:21)
+    at ./src/taskpane/index.tsx (https://localhost:3000/taskpane.js:2309:78)
+[   48615ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/polyfill.js:2802
+[   48615ms] [INFO] [webpack-dev-server] App updated. Recompiling... @ https://localhost:3000/taskpane.js:39899
+[   49102ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/polyfill.js:2802
+[   49102ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/polyfill.js:4258
+[   49104ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/taskpane.js:39899
+[   49105ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/taskpane.js:41355
+[   49189ms] [WARNING] [HMR] Update failed: Loading hot update chunk polyfill failed.
+(missing: https://localhost:3000/polyfill.a4df32ce425b774de253.hot-update.js)
+ChunkLoadError
+    at https://localhost:3000/polyfill.js:31089:26
+    at new Promise (<anonymous>)
+    at loadUpdateChunk (https://localhost:3000/polyfill.js:31084:20)
+    at https://localhost:3000/polyfill.js:31571:29
+    at Array.forEach (<anonymous>)
+    at __webpack_require__.hmrC.jsonp (https://localhost:3000/polyfill.js:31566:22)
+    at https://localhost:3000/polyfill.js:30896:47
+    at Array.reduce (<anonymous>)
+    at https://localhost:3000/polyfill.js:30892:55 @ https://localhost:3000/polyfill.js:4260
+[   49196ms] [LOG] [HMR] Updated modules: @ https://localhost:3000/taskpane.js:41355
+[   49197ms] [LOG] [HMR]  - ./src/taskpane/taskpane.html @ https://localhost:3000/taskpane.js:41355
+[   49197ms] [LOG] [HMR] App is up to date. @ https://localhost:3000/taskpane.js:41355
+[   66722ms] [INFO] [webpack-dev-server] Disconnected! @ https://localhost:3000/taskpane.js:39899
+[   66722ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[   66722ms] [INFO] [webpack-dev-server] Disconnected! @ https://localhost:3000/polyfill.js:2802
+[   66723ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[   68370ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[   68371ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[   68371ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[   68395ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[   68396ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[   68396ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[   71070ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[   71071ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[   71071ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[   71099ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[   71099ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[   71099ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[   75788ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[   75788ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[   75788ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[   75819ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[   75819ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[   75820ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[   84541ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[   84542ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[   84542ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[   84572ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[   84572ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[   84573ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  100625ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/polyfill.js:2802
+[  100658ms] [INFO] [webpack-dev-server] App hot update... @ https://localhost:3000/taskpane.js:39899
+[  100658ms] [LOG] [HMR] Checking for updates on the server... @ https://localhost:3000/taskpane.js:41355
+[  100696ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ https://localhost:3000/taskpane.e7527c72d2be39d49e7d.hot-update.json:0
+[  100696ms] [WARNING] [HMR] Cannot find update. Need to do a full reload! @ https://localhost:3000/taskpane.js:41357
+[  100696ms] [WARNING] [HMR] (Probably because of restarting the webpack-dev-server) @ https://localhost:3000/taskpane.js:41357
+[  100929ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/polyfill.js:2802
+[  100932ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/polyfill.js:4258
+[  101067ms] [INFO] [webpack-dev-server] Server started: Hot Module Replacement enabled, Live Reloading enabled, Progress disabled, Overlay enabled. @ https://localhost:3000/taskpane.js:39899
+[  101069ms] [LOG] [HMR] Waiting for update signal from WDS... @ https://localhost:3000/taskpane.js:41355
+[  101104ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ https://localhost:3000/taskpane.js:33291
+[  101123ms] [ERROR] TypeError: Cannot read properties of undefined (reading 'onReady')
+    at https://localhost:3000/taskpane.js:2332:27
+    at new Promise (<anonymous>)
+    at https://localhost:3000/taskpane.js:2331:18
+    at Generator.<anonymous> (https://localhost:3000/taskpane.js:2312:1657)
+    at Generator.next (https://localhost:3000/taskpane.js:2313:255)
+    at asyncGeneratorStep (https://localhost:3000/taskpane.js:2314:70)
+    at _next (https://localhost:3000/taskpane.js:2315:163)
+    at https://localhost:3000/taskpane.js:2315:299
+    at new Promise (<anonymous>)
+    at https://localhost:3000/taskpane.js:2315:90 @ :0
+[  108818ms] [INFO] [webpack-dev-server] Disconnected! @ https://localhost:3000/taskpane.js:39899
+[  108818ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  108819ms] [INFO] [webpack-dev-server] Disconnected! @ https://localhost:3000/polyfill.js:2802
+[  108819ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  110538ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  110538ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  110539ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  110568ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  110568ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  110569ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  113261ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  113261ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  113262ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  113317ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  113318ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  113318ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  118010ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  118011ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  118011ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  118041ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  118042ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  118042ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  126756ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  126756ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  126757ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  126785ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  126785ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  126785ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  143389ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  143390ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  143390ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  143421ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  143421ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  143421ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802
+[  176083ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/taskpane.js:38597
+[  176083ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/taskpane.js:39907
+[  176083ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/taskpane.js:39899
+[  176118ms] [ERROR] WebSocket connection to 'wss://localhost:3000/ws' failed: Error in connection establishment: net::ERR_SSL_PROTOCOL_ERROR @ https://localhost:3000/polyfill.js:1500
+[  176118ms] [ERROR] [webpack-dev-server] Event @ https://localhost:3000/polyfill.js:2810
+[  176119ms] [INFO] [webpack-dev-server] Trying to reconnect... @ https://localhost:3000/polyfill.js:2802

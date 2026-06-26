@@ -9,15 +9,15 @@ declare global {
   }
 }
 
-async function main() {
-  await new Promise<void>((resolve) => {
-    window.Office.onReady(() => {
-      resolve();
-    });
-  });
-
+function main() {
   const root = ReactDOM.createRoot(document.getElementById('app')!);
   root.render(<TaskPane />);
 }
 
-main().catch(console.error);
+if (typeof window.Office !== 'undefined') {
+  window.Office.onReady(() => {
+    main();
+  });
+} else {
+  main();
+}

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+lib/
+*.js.map
+taskpane.html
+manifest.xml
+6017e634fec619e7858f.css
