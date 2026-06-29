@@ -1,0 +1,629 @@
+:root {
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --ink: #111827;
+  --muted: #6b7280;
+  --muted-2: #9ca3af;
+  --muted-3: #d1d5db;
+  --accent: #2b579a;
+  --accent-hover: #1e3f73;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warn: #d97706;
+  --warn-bg: #fffbeb;
+  --info: #0891b2;
+  --info-bg: #ecfeff;
+  --border: #e5e7eb;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+/* Header */
+.klara-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.klara-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.klara-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.klara-header-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.klara-header-subtitle {
+  font-size: 10.5px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.klara-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.klara-close-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+/* Tabs */
+.klara-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.klara-tab {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.klara-tab:hover {
+  color: var(--ink);
+}
+
+.klara-tab.active {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.klara-badge {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Content area */
+.klara-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Cards */
+.klara-card {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.klara-card-label {
+  font-size: 10.5px;
+  color: var(--muted-2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.klara-card-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.klara-card-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+
+/* Diff box */
+.klara-diff {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--surface-2);
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+.klara-diff-del {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
+.klara-diff-add {
+  color: var(--success);
+}
+
+/* Buttons */
+.klara-btn {
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+
+.klara-btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.klara-btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.klara-btn-ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.klara-btn-ghost:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.klara-btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.klara-btn-danger:hover {
+  background: var(--danger-bg);
+}
+
+.klara-btn-sm {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.klara-btn-group {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Checklist */
+.klara-checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.klara-checklist-item:hover {
+  background: var(--surface-2);
+}
+
+.klara-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.klara-dot-pass { background: var(--success); }
+.klara-dot-fail { background: var(--danger); }
+.klara-dot-warn { background: var(--warn); }
+.klara-dot-pending { background: var(--muted-3); }
+
+.klara-checklist-title {
+  font-size: 12px;
+  flex: 1;
+  line-height: 1.3;
+}
+
+/* Workflow buttons */
+.klara-workflow-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 14px;
+  margin: 0 14px;
+  margin-bottom: 6px;
+  width: calc(100% - 28px);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.klara-workflow-btn:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.klara-workflow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.klara-workflow-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.klara-workflow-desc {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Progress bar */
+.klara-progress {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.klara-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Chat input */
+.klara-chat-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.klara-chat-box {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.klara-chat-placeholder {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.klara-chat-row {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  gap: 6px;
+}
+
+.klara-chat-icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+.klara-chat-icon-btn:hover {
+  background: var(--border);
+  color: var(--ink);
+}
+
+.klara-chat-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  outline: none;
+}
+
+.klara-chat-input::placeholder {
+  color: var(--muted);
+}
+
+.klara-chat-mode {
+  font-size: 11px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Login overlay */
+.klara-login-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.klara-login-box {
+  width: 280px;
+  padding: 24px;
+  text-align: center;
+}
+
+.klara-login-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.klara-login-subtitle {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.klara-login-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  margin-bottom: 8px;
+  outline: none;
+}
+
+.klara-login-input:focus {
+  border-color: var(--accent);
+}
+
+.klara-login-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  margin-top: 4px;
+}
+
+.klara-login-btn:hover {
+  background: var(--accent-hover);
+}
+
+.klara-login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.klara-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0;
+  color: var(--muted-3);
+  font-size: 10px;
+}
+
+.klara-login-divider::before,
+.klara-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.klara-sso-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.klara-sso-btn:hover {
+  background: var(--surface-2);
+}
+
+/* Loading */
+.klara-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.klara-loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: klara-spin 0.6s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes klara-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.klara-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--muted-2);
+  text-align: center;
+}
+
+.klara-empty-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+  opacity: 0.4;
+}
+
+.klara-empty-text {
+  font-size: 12px;
+}
+
+/* Group header */
+.klara-group-header {
+  padding: 8px 14px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Summary bar */
+.klara-summary {
+  display: flex;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.klara-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.klara-summary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Chat messages */
+.klara-chat-messages {
+  padding: 10px 14px;
+  max-height: 200px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.klara-chat-msg {
+  font-size: 11.5px;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.klara-chat-msg-user {
+  color: var(--ink);
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.klara-chat-msg-ai {
+  color: var(--muted);
+  padding: 6px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Document info bar */
+.klara-doc-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.klara-doc-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
