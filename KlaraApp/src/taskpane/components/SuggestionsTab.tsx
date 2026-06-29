@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import type { QCFinding } from '../types';
-import type { TextReplacementResult } from '../word-context';
+import type { TextReplacementResult, FormattingResult } from '../word-context';
 import { qcApi } from '../api/qc';
-import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph } from '../word-context';
+import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting } from '../word-context';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'var(--danger)',
@@ -12,7 +12,15 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const isActionableFinding = (f: QCFinding): boolean => {
-  return !!(f.original_text && f.replacement_text && f.original_text !== f.replacement_text);
+  // Text replacement findings are actionable
+  if (f.original_text && f.replacement_text && f.original_text !== f.replacement_text) {
+    return true;
+  }
+  // Formatting fix findings are actionable
+  if (f.formatting_fix) {
+    return true;
+  }
+  return false;
 };
 
 interface SuggestionsTabProps {
@@ -79,7 +87,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
       let result: TextReplacementResult;
 
-      if (finding.paragraph_index !== undefined) {
+      if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
         result = await replaceTextInParagraph(text, replacement, finding.paragraph_index);
       } else {
         result = await replaceText(text, replacement, 0);
@@ -166,6 +174,81 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
     }
   }, [onRefresh]);
 
+  const handleAcceptFormatting = useCallback(async (finding: QCFinding) => {
+    setLoading(true);
+    setError('');
+    try {
+      if (!finding.formatting_fix) {
+        throw new Error('Cannot accept formatting: missing formatting fix definition');
+      }
+
+      console.log(`Accepting formatting fix ${finding.id}:`, finding.formatting_fix);
+
+      let result: FormattingResult;
+
+      // Use paragraph index if available, otherwise search for the text
+      if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+        result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix);
+      } else if (finding.original_text || finding.anchor_text) {
+        const searchText = finding.original_text || finding.anchor_text;
+        result = await searchAndApplyFormatting(searchText!, finding.formatting_fix);
+      } else {
+        throw new Error('Cannot apply formatting: missing paragraph index and search text');
+      }
+
+      console.log(`Formatting result:`, result);
+
+      // Handle the result
+      if (result.success && result.applied) {
+        // Formatting was successfully applied
+        console.log(`✅ Formatting successfully applied, updating finding status in backend...`);
+
+        await qcApi.resolveFinding(finding.id, {
+          status: 'accepted',
+          resolution_notes: result.message,
+        });
+
+        console.log(`Finding ${finding.id} successfully accepted and formatting applied`);
+
+        setAcceptedIds((prev) => new Set(prev).add(finding.id));
+        setRejectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+        setCommentedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+
+        // Show success message temporarily
+        setError('');
+        onRefresh();
+
+        // Scroll to show the change in the document
+        const targetParagraph = result.paragraphIndex ?? finding.paragraph_index;
+        if (targetParagraph !== undefined) {
+          try {
+            await selectParagraph(targetParagraph, '#90ee90');
+          } catch (e) {
+            console.warn('Could not highlight the formatted paragraph:', e);
+          }
+        }
+
+      } else {
+        // Something went wrong
+        throw new Error(result.message || 'Unknown formatting error');
+      }
+
+    } catch (e: any) {
+      console.error(`Failed to accept formatting ${finding.id}:`, e);
+      setError(`Failed to accept formatting for "${finding.title}": ${e.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [onRefresh]);
+
   const handleReject = useCallback(async (finding: QCFinding) => {
     try {
       await qcApi.resolveFinding(finding.id, {
@@ -199,15 +282,15 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
       let result: { success: boolean; message: string };
 
-      if (text && finding.paragraph_index !== undefined) {
+      if (text && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
         result = await createKlaraCommentInParagraph(text, `Klara AI: ${commentText}`, finding.paragraph_index, finding.id);
-        if (!result.success && finding.paragraph_index !== undefined) {
+        if (!result.success && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
           console.log(`Text search failed, falling back to paragraph-based comment`);
           result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
         }
       } else if (text) {
         result = await createKlaraComment(text, `Klara AI: ${commentText}`, finding.id);
-      } else if (finding.paragraph_index !== undefined) {
+      } else if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
         result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
       } else {
         throw new Error('Cannot add comment: missing text anchor and paragraph index');
@@ -264,6 +347,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
     setError('');
     const appliedIds: string[] = [];
     const autoResolvedIds: string[] = [];
+    const formattingAppliedIds: string[] = [];
     const failedIds: string[] = [];
     const pending = actionableFindings;
 
@@ -271,14 +355,58 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
     for (const finding of pending) {
       try {
+        // Handle formatting fixes
+        if (finding.formatting_fix) {
+          console.log(`[${appliedIds.length + autoResolvedIds.length + formattingAppliedIds.length + 1}/${pending.length}] Applying formatting fix ${finding.id}`);
+
+          let result: FormattingResult;
+
+          if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+            result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix);
+          } else if (finding.original_text || finding.anchor_text) {
+            const searchText = finding.original_text || finding.anchor_text;
+            result = await searchAndApplyFormatting(searchText!, finding.formatting_fix);
+          } else {
+            console.warn(`⚠️ Cannot apply formatting ${finding.id}: missing location info`);
+            failedIds.push(finding.id);
+            continue;
+          }
+
+          if (result.success && result.applied) {
+            await qcApi.resolveFinding(finding.id, {
+              status: 'accepted',
+              resolution_notes: result.message,
+            });
+            setAcceptedIds((prev) => new Set(prev).add(finding.id));
+            setCommentedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(finding.id);
+              return next;
+            });
+            formattingAppliedIds.push(finding.id);
+            console.log(`✅ Successfully applied formatting for finding ${finding.id}`);
+          } else {
+            failedIds.push(finding.id);
+            console.warn(`⚠️ Failed to apply formatting ${finding.id}: ${result.message}`);
+          }
+          continue;
+        }
+
+        // Handle text replacements
         const text = finding.original_text!;
         const replacement = finding.replacement_text!;
 
-        console.log(`[${appliedIds.length + autoResolvedIds.length + 1}/${pending.length}] Accepting finding ${finding.id}: "${text}" -> "${replacement}"`);
+        if (!text || !replacement) {
+          console.warn(`⚠️ Skipping finding ${finding.id}: missing text or replacement`);
+          failedIds.push(finding.id);
+          continue;
+        }
+
+        console.log(`[${appliedIds.length + autoResolvedIds.length + formattingAppliedIds.length + 1}/${pending.length}] Accepting finding ${finding.id}: "${text}" -> "${replacement}"`);
 
         let result: TextReplacementResult;
 
-        if (finding.paragraph_index !== undefined) {
+        if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
           result = await replaceTextInParagraph(text, replacement, finding.paragraph_index);
         } else {
           result = await replaceText(text, replacement, 0);
@@ -326,15 +454,15 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
     onRefresh();
 
     // Show summary message
-    const totalProcessed = appliedIds.length + autoResolvedIds.length;
+    const totalProcessed = appliedIds.length + autoResolvedIds.length + formattingAppliedIds.length;
     if (failedIds.length > 0) {
-      console.warn(`Batch accept completed: ${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved, ${failedIds.length} failed`);
-      setError(`${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved (stale), ${failedIds.length} failed`);
+      console.warn(`Batch accept completed: ${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved, ${formattingAppliedIds.length} formatting applied, ${failedIds.length} failed`);
+      setError(`${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved, ${formattingAppliedIds.length} formatting, ${failedIds.length} failed`);
     } else if (autoResolvedIds.length > 0) {
-      console.log(`Batch accept completed: ${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved`);
-      setError(`${appliedIds.length} applied, ${autoResolvedIds.length} auto-resolved (stale suggestions)`);
+      console.log(`Batch accept completed: ${appliedIds.length} applied, ${formattingAppliedIds.length} formatting applied, ${autoResolvedIds.length} auto-resolved`);
+      setError(`${appliedIds.length} applied, ${formattingAppliedIds.length} formatting, ${autoResolvedIds.length} auto-resolved (stale suggestions)`);
     } else {
-      console.log(`Batch accept completed: All ${appliedIds.length} findings successfully accepted`);
+      console.log(`Batch accept completed: All ${totalProcessed} findings successfully accepted (${formattingAppliedIds.length} formatting, ${appliedIds.length} text replacements)`);
     }
 
     setLoading(false);
@@ -377,11 +505,13 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
   return (
     <div>
-      {actionableFindings.length > 0 && (
+      {openFindings.length > 0 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
-          <button className="klara-btn klara-btn-primary klara-btn-sm" onClick={handleAcceptAll} disabled={loading}>
-            Accept All
-          </button>
+          {actionableFindings.length > 0 && (
+            <button className="klara-btn klara-btn-primary klara-btn-sm" onClick={handleAcceptAll} disabled={loading}>
+              Accept All
+            </button>
+          )}
           <button className="klara-btn klara-btn-ghost klara-btn-sm" onClick={handleRejectAll}>
             Reject All
           </button>
@@ -438,7 +568,14 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
             {isActionableFinding(finding) && (
               <button
                 className="klara-btn klara-btn-primary klara-btn-sm"
-                onClick={(e) => { e.stopPropagation(); handleAccept(finding); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (finding.formatting_fix) {
+                    handleAcceptFormatting(finding);
+                  } else {
+                    handleAccept(finding);
+                  }
+                }}
                 disabled={loading}
               >
                 Accept

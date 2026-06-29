@@ -52,6 +52,12 @@ export interface Finding {
   resolved_at?: string;
 }
 
+export interface FormattingOperation {
+  type: 'keep_with_next' | 'page_break_before' | 'widow_orphan_control' | 'line_spacing' | 'alignment';
+  value: boolean | number | string;
+  description?: string;
+}
+
 export interface QCFinding {
   id: string;
   document_id: string;
@@ -72,6 +78,7 @@ export interface QCFinding {
   resolved_by?: string;
   resolved_at?: string;
   resolution_notes?: string;
+  formatting_fix?: FormattingOperation;
 }
 
 export interface AIJob {

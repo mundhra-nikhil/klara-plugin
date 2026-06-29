@@ -28,8 +28,6 @@ export async function searchAndSelect(text: string, occurrence: number): Promise
         range.select();
         await context.sync();
       }
-    }).catch(() => {
-      // Word API may not be available in all contexts
     });
     return range;
   } catch {
@@ -68,7 +66,7 @@ export async function selectParagraph(index: number, color?: string): Promise<Wo
         range.select();
         await context.sync();
       }
-    }).catch(() => {});
+    });
     return range;
   } catch {
     return null;
@@ -144,7 +142,7 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
             // Search the entire document to find where the text actually is
             const body = context.document.body;
             const allParagraphs = body.paragraphs;
-            context.load(allParagraphs, 'items');
+            context.load(allParagraphs, 'items/text');
             await context.sync();
 
             let foundIndex = -1;
@@ -152,8 +150,6 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
 
             for (let i = 0; i < allParagraphs.items.length; i++) {
               const p = allParagraphs.items[i];
-              p.load('text');
-              await context.sync();
 
               if (p.text && p.text.includes(text)) {
                 foundIndex = i;
@@ -766,4 +762,242 @@ function generateSearchVariations(text: string): string[] {
   }
 
   return Array.from(new Set(variations));
+}
+
+/**
+ * Result type for formatting operations
+ */
+export interface FormattingResult {
+  success: boolean;
+  applied: boolean;
+  message: string;
+  paragraphIndex?: number;
+}
+
+/**
+ * Apply formatting fix to a paragraph
+ * @param paragraphIndex The index of the paragraph to format
+ * @param operation The formatting operation to apply
+ */
+export async function applyParagraphFormatting(paragraphIndex: number, operation: any): Promise<FormattingResult> {
+  try {
+    let message = '';
+    let applied = false;
+    let actualParagraphIndex = paragraphIndex;
+
+    await Word.run(async (context) => {
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load('items');
+        await context.sync();
+
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+          const paragraph = paragraphs.items[paragraphIndex];
+          const format = paragraph.format;
+
+          // Apply the formatting operation based on type
+          switch (operation.type) {
+            case 'keep_with_next':
+              format.keepWithNext = operation.value;
+              message = operation.value
+                ? 'Enabled "Keep with next" to prevent orphan headings'
+                : 'Disabled "Keep with next"';
+              applied = true;
+              break;
+
+            case 'page_break_before':
+              format.pageBreakBefore = operation.value;
+              message = operation.value
+                ? 'Enabled page break before'
+                : 'Disabled page break before';
+              applied = true;
+              break;
+
+            case 'widow_orphan_control':
+              format.widowControl = operation.value;
+              message = operation.value
+                ? 'Enabled widow/orphan control'
+                : 'Disabled widow/orphan control';
+              applied = true;
+              break;
+
+            case 'line_spacing':
+              if (typeof operation.value === 'number') {
+                format.lineSpacing = operation.value;
+                message = `Set line spacing to ${operation.value}`;
+                applied = true;
+              } else {
+                message = 'Invalid line spacing value';
+              }
+              break;
+
+            case 'alignment':
+              // Map string alignment values to Word.Alignment enum
+              const alignmentMap: Record<string, Word.Alignment> = {
+                'left': Word.Alignment.left,
+                'right': Word.Alignment.right,
+                'center': Word.Alignment.center,
+                'justified': Word.Alignment.justified,
+                'distributed': Word.Alignment.distributed
+              };
+
+              if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
+                format.alignment = alignmentMap[operation.value];
+                message = `Set alignment to ${operation.value}`;
+                applied = true;
+              } else {
+                message = `Invalid alignment value: ${operation.value}`;
+              }
+              break;
+
+            default:
+              message = `Unknown formatting operation type: ${operation.type}`;
+              applied = false;
+          }
+
+          await context.sync();
+        } else {
+          message = `Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})`;
+          applied = false;
+        }
+      } catch (wordError) {
+        console.error('Error inside Word.run for formatting:', wordError);
+        message = `Word API error: ${wordError.message}`;
+        applied = false;
+      }
+    });
+
+    return {
+      success: true,
+      applied,
+      message,
+      paragraphIndex: actualParagraphIndex
+    };
+  } catch (e: any) {
+    console.error('Failed to apply paragraph formatting:', e);
+    return {
+      success: false,
+      applied: false,
+      message: `Failed to apply formatting: ${e.message || 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Search for and apply formatting to a paragraph containing specific text
+ * @param searchText The text to search for
+ * @param operation The formatting operation to apply
+ */
+export async function searchAndApplyFormatting(searchText: string, operation: any): Promise<FormattingResult> {
+  try {
+    let message = '';
+    let applied = false;
+    let foundParagraphIndex: number | undefined = undefined;
+
+    await Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+        const paragraphs = body.paragraphs;
+        paragraphs.load('items');
+        await context.sync();
+
+        // Search for the paragraph containing the text
+        for (let i = 0; i < paragraphs.items.length; i++) {
+          const paragraph = paragraphs.items[i];
+          paragraph.load('text');
+          await context.sync();
+
+          if (paragraph.text && paragraph.text.includes(searchText)) {
+            foundParagraphIndex = i;
+            const format = paragraph.format;
+
+            // Apply the formatting operation based on type
+            switch (operation.type) {
+              case 'keep_with_next':
+                format.keepWithNext = operation.value;
+                message = operation.value
+                  ? `Enabled "Keep with next" for paragraph containing "${searchText}"`
+                  : `Disabled "Keep with next" for paragraph containing "${searchText}"`;
+                applied = true;
+                break;
+
+              case 'page_break_before':
+                format.pageBreakBefore = operation.value;
+                message = operation.value
+                  ? `Enabled page break before for paragraph containing "${searchText}"`
+                  : `Disabled page break before for paragraph containing "${searchText}"`;
+                applied = true;
+                break;
+
+              case 'widow_orphan_control':
+                format.widowControl = operation.value;
+                message = operation.value
+                  ? `Enabled widow/orphan control for paragraph containing "${searchText}"`
+                  : `Disabled widow/orphan control for paragraph containing "${searchText}"`;
+                applied = true;
+                break;
+
+              case 'line_spacing':
+                if (typeof operation.value === 'number') {
+                  format.lineSpacing = operation.value;
+                  message = `Set line spacing to ${operation.value} for paragraph containing "${searchText}"`;
+                  applied = true;
+                } else {
+                  message = 'Invalid line spacing value';
+                }
+                break;
+
+              case 'alignment':
+                const alignmentMap: Record<string, Word.Alignment> = {
+                  'left': Word.Alignment.left,
+                  'right': Word.Alignment.right,
+                  'center': Word.Alignment.center,
+                  'justified': Word.Alignment.justified,
+                  'distributed': Word.Alignment.distributed
+                };
+
+                if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
+                  format.alignment = alignmentMap[operation.value];
+                  message = `Set alignment to ${operation.value} for paragraph containing "${searchText}"`;
+                  applied = true;
+                } else {
+                  message = `Invalid alignment value: ${operation.value}`;
+                }
+                break;
+
+              default:
+                message = `Unknown formatting operation type: ${operation.type}`;
+                applied = false;
+            }
+
+            await context.sync();
+            break; // Found and processed, exit loop
+          }
+        }
+
+        if (!foundParagraphIndex) {
+          message = `Could not find paragraph containing "${searchText}"`;
+          applied = false;
+        }
+      } catch (wordError) {
+        console.error('Error inside Word.run for search and format:', wordError);
+        message = `Word API error: ${wordError.message}`;
+        applied = false;
+      }
+    });
+
+    return {
+      success: true,
+      applied,
+      message,
+      paragraphIndex: foundParagraphIndex
+    };
+  } catch (e: any) {
+    console.error('Failed to search and apply formatting:', e);
+    return {
+      success: false,
+      applied: false,
+      message: `Failed to apply formatting: ${e.message || 'Unknown error'}`
+    };
+  }
 }
