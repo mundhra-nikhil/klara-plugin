@@ -1,0 +1,59 @@
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# Database
+sqlalchemy==2.0.35
+asyncpg==0.29.0
+alembic==1.13.3
+
+# Redis
+redis[hiredis]==5.1.1
+
+# Task Queue
+celery==5.4.0
+kombu==5.3.7
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
+httpx==0.27.2
+python-multipart==0.0.12
+
+# Azure SDKs
+azure-identity==1.18.0
+azure-storage-blob==12.23.0
+azure-keyvault-secrets==4.8.0
+openai==1.51.0
+
+# Claude via AWS Bedrock (primary QC analysis engine)
+anthropic[bedrock]==0.69.0
+
+# Document generation (processed .docx output)
+python-docx==1.2.0
+
+# Document rendering for vision analysis (docx → PDF via LibreOffice → page images)
+pdf2image==1.17.0
+Pillow==10.4.0
+
+# Utilities
+structlog==24.4.0
+python-dotenv==1.0.1
+tenacity==9.0.0
+cryptography==43.0.1
+pytz==2024.1
+
+# Validation & serialization
+email-validator==2.2.0
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+
+# Observability
+opentelemetry-api==1.27.0
+opentelemetry-sdk==1.27.0
+opentelemetry-instrumentation-fastapi==0.48b0

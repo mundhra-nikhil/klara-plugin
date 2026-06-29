@@ -20,9 +20,7 @@ function LoginOverlay({ onLogin }: { onLogin: (token: string, user: any) => void
     setLoading(true);
     setError('');
     try {
-      const { authApi: api } = await import('../api/auth');
-      const { setTokens } = await import('../api/client');
-      const resp = await api.login({ username: email, password });
+      const resp = await authApi.login({ username: email, password });
       setTokens(resp.access_token, resp.refresh_token);
       try {
         const payload = JSON.parse(atob(resp.access_token.split('.')[1]));
@@ -48,7 +46,7 @@ function LoginOverlay({ onLogin }: { onLogin: (token: string, user: any) => void
     try {
       const token = await authApi.getSsoToken();
       if (token) {
-        setTokens(token, '');
+        setTokens(token, 'sso-token');
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           onLogin(token, {
@@ -246,7 +244,7 @@ export function TaskPane() {
         {activeTab === 'workflows' && <WorkflowsTab />}
       </div>
 
-      <ChatInput messages={chatMessages} onSend={(msg) => setChatMessages((prev) => [...prev, msg])} />
+      <ChatInput messages={chatMessages} onSend={(msg) => setChatMessages((prev) => [...prev.slice(-49), msg])} />
     </div>
   );
 }

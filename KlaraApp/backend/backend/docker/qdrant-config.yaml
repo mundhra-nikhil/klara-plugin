@@ -1,0 +1,12 @@
+storage:
+  snapshots_path: /qdrant/snapshots
+  on_disk_payload: true
+
+service:
+  max_request_size_mb: 256
+
+collections:
+  checklists:
+    vectors:
+      size: 1536
+      distance: Cosine

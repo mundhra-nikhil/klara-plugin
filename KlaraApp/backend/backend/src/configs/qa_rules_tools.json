@@ -1,0 +1,58 @@
+{
+  "tools": [
+    {
+      "name": "formatting_check",
+      "description": "Check document formatting: fonts, margins, line spacing, headers/footers, page numbering, TOC accuracy",
+      "parameters": {
+        "document_type": "string",
+        "check_fonts": "boolean",
+        "check_margins": "boolean",
+        "check_spacing": "boolean",
+        "check_headers_footers": "boolean",
+        "check_page_numbering": "boolean",
+        "check_toc": "boolean"
+      }
+    },
+    {
+      "name": "proofreading",
+      "description": "Check for spelling, grammar, punctuation, and consistency issues",
+      "parameters": {
+        "language": "string",
+        "check_spelling": "boolean",
+        "check_grammar": "boolean",
+        "check_punctuation": "boolean",
+        "check_consistency": "boolean"
+      }
+    },
+    {
+      "name": "compliance_audit",
+      "description": "Check regulatory compliance, required sections, proper citations, filing requirements",
+      "parameters": {
+        "jurisdiction": "string",
+        "filing_type": "string",
+        "check_citations": "boolean",
+        "check_required_sections": "boolean"
+      }
+    },
+    {
+      "name": "style_validation",
+      "description": "Check adherence to style guide, consistent terminology, citation format, heading styles",
+      "parameters": {
+        "style_guide": "string",
+        "check_terminology": "boolean",
+        "check_citation_format": "boolean",
+        "check_heading_styles": "boolean"
+      }
+    },
+    {
+      "name": "pdf_comparison",
+      "description": "Compare source and converted documents for fidelity issues",
+      "parameters": {
+        "check_content": "boolean",
+        "check_formatting": "boolean",
+        "check_images": "boolean",
+        "check_tables": "boolean"
+      }
+    }
+  ]
+}

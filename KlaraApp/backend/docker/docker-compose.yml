@@ -1,0 +1,79 @@
+services:
+  backend:
+    container_name: legal-backend
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      REDIS_URL: redis://redis-docker:6379/0
+      DATABASE_URL: postgresql+asyncpg://grss_user:changeme@postgres-docker:5432/grss_db
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ..:/app
+      - ../../frontend/uploads:/uploads
+      - ../../test_files:/test_files
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+
+  db:
+    container_name: postgres-docker
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: grss_user
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: grss_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grss_user -d grss_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: redis-docker
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    container_name: qdrant-docker
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  onlyoffice:
+    container_name: klara-onlyoffice-1
+    build:
+      context: ../../onlyoffice
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      - JWT_ENABLED=false
+      - JWT_SECRET=doceditor_secret_key
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  qdrant_data:

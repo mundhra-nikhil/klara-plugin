@@ -29,7 +29,7 @@ export const qcApi = {
     const body = data.data ?? data;
     const result = Array.isArray(body) ? body : (body.data || body.items);
     if (!Array.isArray(result)) {
-      throw new Error('Unexpected API response structure: expected an array of reviews');
+      throw new Error(`Unexpected API response structure: expected an array of reviews, got ${typeof body}`);
     }
     return result;
   },

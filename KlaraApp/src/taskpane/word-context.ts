@@ -1,5 +1,6 @@
 export async function searchAndSelect(text: string, occurrence: number): Promise<Word.Range | null> {
   try {
+    if (occurrence < 0) return null;
     let range: Word.Range | null = null;
     await Word.run(async (context) => {
       const body = context.document.body;
@@ -222,8 +223,8 @@ export async function getDocumentMetadata(): Promise<{ title: string; author: st
         if (authorProp) {
           context.load(authorProp, 'items');
           await context.sync();
-          const authorItem = authorProp.getItemOrNullObject('Author');
-          if (!authorItem.isNull) {
+          const authorItem = authorProp.tryGetByKey('Author');
+          if (authorItem && !authorItem.isNull) {
             author = authorItem.value?.toString() || '';
           }
         }

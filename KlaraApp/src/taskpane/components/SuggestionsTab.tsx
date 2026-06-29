@@ -65,7 +65,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
         throw new Error('Cannot accept finding: missing original or replacement text');
       }
 
-      if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+    if (finding.paragraph_index !== undefined) {
         await replaceTextInParagraph(text, replacement, finding.paragraph_index);
       } else {
         await replaceText(text, replacement, 0);
@@ -110,13 +110,13 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
   const handleAcceptAll = useCallback(async () => {
     setLoading(true);
     setError('');
-    let failedCount = 0;
+    const failedIds: string[] = [];
     const pending = openFindings.filter((f) => f.original_text && f.replacement_text);
     for (const finding of pending) {
       try {
         const text = finding.original_text!;
         const replacement = finding.replacement_text!;
-        if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+        if (finding.paragraph_index !== undefined) {
           await replaceTextInParagraph(text, replacement, finding.paragraph_index);
         } else {
           await replaceText(text, replacement, 0);
@@ -127,12 +127,12 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
         });
         setAcceptedIds((prev) => new Set(prev).add(finding.id));
       } catch (e) {
-        failedCount++;
+        failedIds.push(finding.id);
       }
     }
     onRefresh();
-    if (failedCount > 0) {
-      setError(`Failed to accept ${failedCount} findings.`);
+    if (failedIds.length > 0) {
+      setError(`Failed to accept ${failedIds.length} findings: ${failedIds.join(', ')}`);
     }
     setLoading(false);
   }, [openFindings, onRefresh]);
