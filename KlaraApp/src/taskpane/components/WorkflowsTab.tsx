@@ -4,27 +4,27 @@ import type { AIJob } from '../types';
 
 const JOB_TYPES = [
   {
-    type: 'full_analysis' as const,
+    type: 'compliance_audit' as const,
     title: 'Run full QC pass',
     desc: 'All 28 checks against profile',
   },
   {
-    type: 'format_check' as const,
+    type: 'formatting_check' as const,
     title: 'Apply client template',
     desc: 'Formatting rules and style guide',
   },
   {
-    type: 'citation_check' as const,
+    type: 'style_validation' as const,
     title: 'Generate TOA',
     desc: 'Citation extraction + format',
   },
   {
-    type: 'numbering_check' as const,
+    type: 'proofreading' as const,
     title: 'Build TOC from headings',
     desc: "Match style 'Heading 1-3'",
   },
   {
-    type: 'spelling_check' as const,
+    type: 'pdf_comparison' as const,
     title: 'Compare to source PDF',
     desc: 'Word-for-word comparison',
   },
@@ -80,7 +80,7 @@ export function WorkflowsTab() {
     try {
       const job = await aiJobsApi.triggerJob({
         document_id: '11111111-1111-1111-1111-111111111111',
-        job_type: (jobType as any) || 'format_check',
+        job_type: (jobType as any) || 'formatting_check',
       });
       setActiveJob(job);
       pollJob(job.id);

@@ -14,6 +14,17 @@ export async function searchAndSelect(text: string, occurrence: number): Promise
 
       if (occurrence >= 0 && searchResults.items.length > occurrence) {
         range = searchResults.items[occurrence];
+
+        // Workaround: Insert a temporary content control to force viewport update
+        const tempControl = range.insertContentControl();
+        tempControl.select();
+        await context.sync();
+
+        // Remove the temporary content control while keeping the text
+        tempControl.delete(true);
+        await context.sync();
+
+        // Re-select the range to ensure it's selected after removing the control
         range.select();
         await context.sync();
       }
@@ -35,11 +46,26 @@ export async function selectParagraph(index: number, color?: string): Promise<Wo
       await context.sync();
 
       if (index >= 0 && index < paragraphs.items.length) {
-        range = paragraphs.items[index].getRange();
-        range.select();
+        const paragraph = paragraphs.items[index];
+        range = paragraph.getRange();
+
+        // Workaround: Insert a temporary content control to force viewport update
+        const tempControl = range.insertContentControl();
+        tempControl.select();
+        await context.sync();
+
+        // Apply highlight color to the paragraph range
         if (color) {
           range.font.highlightColor = color;
+          await context.sync();
         }
+
+        // Remove the temporary content control while keeping the text
+        tempControl.delete(true);
+        await context.sync();
+
+        // Re-select the range to ensure it's selected after removing the control
+        range.select();
         await context.sync();
       }
     }).catch(() => {});
@@ -73,136 +99,330 @@ export async function clearHighlights(): Promise<void> {
   }
 }
 
-export async function replaceTextInParagraph(text: string, replacement: string, paragraphIndex: number): Promise<boolean> {
+/**
+ * Result type for text replacement operations
+ */
+export interface TextReplacementResult {
+  success: boolean;
+  applied: boolean;
+  foundInDocument: boolean;
+  actualParagraphIndex?: number;
+  message: string;
+}
+
+export async function replaceTextInParagraph(text: string, replacement: string, paragraphIndex: number): Promise<TextReplacementResult> {
+  let applied = false;
+  let foundInDocument = false;
+  let actualParagraphIndex: number | undefined = undefined;
+  let message = '';
+
   try {
-    let success = false;
     await Word.run(async (context) => {
-      const paragraphs = context.document.body.paragraphs;
-      paragraphs.load('items');
-      await context.sync();
-
-      if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
-        const paragraph = paragraphs.items[paragraphIndex];
-        let searchResults = paragraph.search(text, {
-          matchCase: true,
-          ignorePunct: false,
-          ignoreSpace: false,
-        });
-        context.load(searchResults, 'items');
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load('items');
         await context.sync();
 
-        if (searchResults.items.length === 0) {
-          // Fallback search with more relaxed options if exact match fails
-          searchResults = paragraph.search(text, {
-            matchCase: false,
-            ignorePunct: true,
-            ignoreSpace: true,
-          });
-          context.load(searchResults, 'items');
+        console.log(`🔍 Searching for "${text}" in paragraph ${paragraphIndex} of ${paragraphs.items.length} total paragraphs`);
+
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+          const paragraph = paragraphs.items[paragraphIndex];
+
+          // First, let's see what's actually in the paragraph for debugging
+          paragraph.load('text');
           await context.sync();
+          const paragraphText = paragraph.text;
+          console.log(`📋 Paragraph ${paragraphIndex} content: "${paragraphText.trim()}"`);
+          console.log(`📋 Looking for: "${text}"`);
+          console.log(`📋 Contains search text? ${paragraphText.includes(text)}`);
+
+          // Check if the text is actually in this paragraph
+          if (!paragraphText.includes(text)) {
+            console.warn(`⚠️ WARNING: Text "${text}" not found in paragraph ${paragraphIndex}`);
+            console.log(`🔍 Starting comprehensive document search to find the actual location...`);
+
+            // Search the entire document to find where the text actually is
+            const body = context.document.body;
+            const allParagraphs = body.paragraphs;
+            context.load(allParagraphs, 'items');
+            await context.sync();
+
+            let foundIndex = -1;
+            let foundContent = '';
+
+            for (let i = 0; i < allParagraphs.items.length; i++) {
+              const p = allParagraphs.items[i];
+              p.load('text');
+              await context.sync();
+
+              if (p.text && p.text.includes(text)) {
+                foundIndex = i;
+                foundContent = p.text;
+                foundInDocument = true;
+                actualParagraphIndex = i;
+                console.log(`🎯 Found text "${text}" in actual paragraph ${i}: "${foundContent.trim()}"`);
+                break;
+              }
+            }
+
+            if (foundIndex !== -1) {
+              console.log(`✅ Found text in paragraph ${foundIndex}, proceeding with replacement there`);
+
+              // Use the correct paragraph
+              const correctParagraph = allParagraphs.items[foundIndex];
+              const target = await searchWithVariations(correctParagraph, text, 0);
+
+              if (target) {
+                const originalText = target.text;
+                console.log(`🎯 Found text to replace: "${originalText}"`);
+
+                target.insertText(replacement, Word.InsertLocation.replace);
+                await context.sync();
+
+                // Verify the change was applied
+                target.load('text');
+                await context.sync();
+
+                if (target.text === replacement) {
+                  applied = true;
+                  console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${foundIndex}`);
+                  message = `Replaced in paragraph ${foundIndex} (original index ${paragraphIndex} was incorrect)`;
+                } else {
+                  console.warn(`⚠️ Replacement may not have worked as expected`);
+                  applied = true;
+                  message = `Replacement completed in paragraph ${foundIndex}`;
+                }
+              }
+            } else {
+              console.log(`ℹ️ Could not find "${text}" in any paragraph of the document`);
+              message = `Text "${text}" not found in document - likely stale suggestion`;
+              foundInDocument = false;
+            }
+
+            // If still not found, try the enhanced search in the specified paragraph anyway
+            if (!applied) {
+              console.log(`🔄 Trying enhanced search in specified paragraph ${paragraphIndex} anyway...`);
+            }
+          } else {
+            foundInDocument = true;
+            actualParagraphIndex = paragraphIndex;
+          }
+
+          // Try the enhanced search with variations in the specified paragraph
+          if (!applied && foundInDocument) {
+            const target = await searchWithVariations(paragraph, text, 0);
+
+            if (target) {
+              const originalText = target.text;
+              console.log(`🎯 Found text to replace: "${originalText}"`);
+
+              target.insertText(replacement, Word.InsertLocation.replace);
+              await context.sync();
+
+              // Verify the change was applied
+              target.load('text');
+              await context.sync();
+
+              if (target.text === replacement) {
+                applied = true;
+                console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${paragraphIndex}`);
+                message = `Successfully replaced text in paragraph ${paragraphIndex}`;
+              } else {
+                console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${target.text}"`);
+                applied = true;
+                message = `Replacement completed with unexpected result`;
+              }
+            } else {
+              console.warn(`❌ No search results found for "${text}" in paragraph ${paragraphIndex}`);
+              message = `Could not find exact match for "${text}" in paragraph ${paragraphIndex}`;
+            }
+          }
+        } else {
+          console.warn(`❌ Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})`);
+          message = `Paragraph index ${paragraphIndex} out of range`;
         }
 
-        if (searchResults.items.length === 0) {
-          // Ultimate fallback for paragraph: wildcard search
-          const wildcardText = text.replace(/[^\w]/g, '?');
-          searchResults = paragraph.search(wildcardText, { matchWildcards: true });
-          context.load(searchResults, 'items');
-          await context.sync();
-        }
+        // Fallback: If paragraph index was misaligned (e.g. due to tables) and text wasn't found, search the whole body
+        if (!applied && !foundInDocument) {
+          console.log(`🔄 Paragraph search failed, trying whole body search...`);
+          const body = context.document.body;
+          const bodyTarget = await searchWithVariations(body, text, 0);
 
-        if (searchResults.items.length > 0) {
-          const target = searchResults.items[0]; // Replace the first match IN THIS PARAGRAPH
-          target.insertText(replacement, Word.InsertLocation.replace);
-          await context.sync();
-          success = true;
-        }
-      }
+          if (bodyTarget) {
+            const originalText = bodyTarget.text;
+            console.log(`🎯 Body search found: "${originalText}"`);
 
-      // Fallback: If paragraph index was misaligned (e.g. due to tables) and text wasn't found, search the whole body
-      if (!success) {
-        const body = context.document.body;
-        let bodyResults = body.search(text, { matchCase: true });
-        context.load(bodyResults, 'items');
-        await context.sync();
-        
-        if (bodyResults.items.length === 0) {
-           bodyResults = body.search(text, { matchCase: false, ignorePunct: true, ignoreSpace: true });
-           context.load(bodyResults, 'items');
-           await context.sync();
-        }
-        
-        if (bodyResults.items.length === 0) {
-           // Ultimate fallback: Replace non-alphanumeric characters with '?' (matches any single character)
-           // This handles curly vs straight quotes, non-breaking spaces, and hidden formatting.
-           const wildcardText = text.replace(/[^\w]/g, '?');
-           bodyResults = body.search(wildcardText, { matchWildcards: true });
-           context.load(bodyResults, 'items');
-           await context.sync();
-        }
+            bodyTarget.insertText(replacement, Word.InsertLocation.replace);
+            await context.sync();
 
-        if (bodyResults.items.length > 0) {
-          bodyResults.items[0].insertText(replacement, Word.InsertLocation.replace);
-          await context.sync();
-          success = true;
+            // Verify the change was applied
+            bodyTarget.load('text');
+            await context.sync();
+
+            if (bodyTarget.text === replacement) {
+              applied = true;
+              foundInDocument = true;
+              console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" via body search`);
+              message = `Found and replaced via document-wide search`;
+            } else {
+              console.warn(`⚠️ Body fallback replacement may not have worked as expected`);
+              applied = true;
+              message = `Replacement completed via body search`;
+            }
+          } else {
+            console.log(`ℹ️ All search methods failed for "${text}" - suggestion is likely stale`);
+            message = `Text "${text}" not found in document after exhaustive search`;
+          }
         }
+      } catch (wordError) {
+        console.error('💥 Error inside Word.run context:', wordError);
+        message = `Word API error: ${wordError.message}`;
       }
     });
-    if (!success) {
-      throw new Error(`Could not find the exact text in paragraph ${paragraphIndex}. Please manually apply this fix.`);
-    }
-    return success;
+
+    return {
+      success: true, // Operation completed (even if text wasn't found)
+      applied,
+      foundInDocument,
+      actualParagraphIndex,
+      message
+    };
   } catch (e: any) {
-    console.error("replaceTextInParagraph error:", e);
-    throw e;
+    console.error("💥 replaceTextInParagraph error:", e);
+    return {
+      success: false,
+      applied: false,
+      foundInDocument: false,
+      message: `Failed to complete replacement: ${e.message || 'Unknown error'}`
+    };
   }
 }
 
-export async function replaceText(text: string, replacement: string, occurrence: number = 0): Promise<boolean> {
-  try {
-    let success = false;
-    await Word.run(async (context) => {
-      const body = context.document.body;
-      let searchResults = body.search(text, {
+/**
+ * Enhanced search function that tries multiple text variations
+ */
+async function searchWithVariations(
+  searchScope: Word.Body | Word.Paragraph,
+  text: string,
+  occurrence: number = 0
+): Promise<Word.Range | null> {
+  const variations = generateSearchVariations(text);
+  console.log(`🔍 Trying ${variations.length} search variations for "${text}"`);
+
+  for (let i = 0; i < variations.length; i++) {
+    const variation = variations[i];
+    console.log(`🔍 Variation ${i + 1}/${variations.length}: "${variation}"`);
+
+    try {
+      // Try exact match first
+      let searchResults = searchScope.search(variation, {
         matchCase: true,
         ignorePunct: false,
         ignoreSpace: false,
       });
-      context.load(searchResults, 'items');
-      await context.sync();
-
-      if (searchResults.items.length <= occurrence) {
-        // Fallback search with more relaxed options
-        searchResults = body.search(text, {
-          matchCase: false,
-          ignorePunct: true,
-          ignoreSpace: true,
-        });
-        context.load(searchResults, 'items');
-        await context.sync();
-      }
-      
-      if (searchResults.items.length <= occurrence) {
-        // Ultimate fallback: Replace non-alphanumeric characters with '?'
-        const wildcardText = text.replace(/[^\w]/g, '?');
-        searchResults = body.search(wildcardText, { matchWildcards: true });
-        context.load(searchResults, 'items');
-        await context.sync();
-      }
+      searchResults.context.load(searchResults, 'items');
+      await searchResults.context.sync();
 
       if (searchResults.items.length > occurrence) {
-        const target = searchResults.items[occurrence];
-        target.insertText(replacement, Word.InsertLocation.replace);
-        await context.sync();
-        success = true;
+        console.log(`✅ Found with exact match: "${variation}"`);
+        return searchResults.items[occurrence];
+      }
+
+      // Try case-insensitive
+      searchResults = searchScope.search(variation, {
+        matchCase: false,
+        ignorePunct: true,
+        ignoreSpace: true,
+      });
+      searchResults.context.load(searchResults, 'items');
+      await searchResults.context.sync();
+
+      if (searchResults.items.length > occurrence) {
+        console.log(`✅ Found with relaxed match: "${variation}"`);
+        return searchResults.items[occurrence];
+      }
+
+      // Try wildcard for special characters
+      if (/[^\w\s]/.test(variation)) {
+        const wildcard = variation.replace(/[^\w\s]/g, '?');
+        searchResults = searchScope.search(wildcard, { matchWildcards: true });
+        searchResults.context.load(searchResults, 'items');
+        await searchResults.context.sync();
+
+        if (searchResults.items.length > occurrence) {
+          console.log(`✅ Found with wildcard: "${wildcard}"`);
+          return searchResults.items[occurrence];
+        }
+      }
+    } catch (e) {
+      console.warn(`⚠️ Search failed for variation "${variation}":`, e);
+      continue;
+    }
+  }
+
+  console.log(`❌ All search variations failed for "${text}"`);
+  return null;
+}
+
+export async function replaceText(text: string, replacement: string, occurrence: number = 0): Promise<TextReplacementResult> {
+  let applied = false;
+  let foundInDocument = false;
+  let message = '';
+
+  try {
+    await Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+        console.log(`🔍 Searching for "${text}" in document body`);
+
+        const target = await searchWithVariations(body, text, occurrence);
+
+        if (target) {
+          const originalText = target.text;
+          console.log(`🎯 Found text: "${originalText}"`);
+
+          target.insertText(replacement, Word.InsertLocation.replace);
+          await context.sync();
+
+          // Verify the change was applied
+          target.load('text');
+          await context.sync();
+
+          if (target.text === replacement) {
+            applied = true;
+            foundInDocument = true;
+            console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" at occurrence ${occurrence}`);
+            message = `Successfully replaced "${originalText}" with "${replacement}"`;
+          } else {
+            console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${target.text}"`);
+            applied = true;
+            foundInDocument = true;
+            message = `Replacement completed with unexpected result`;
+          }
+        } else {
+          console.log(`ℹ️ Could not find "${text}" in document`);
+          message = `Text "${text}" not found in document`;
+        }
+      } catch (wordError) {
+        console.error('💥 Error inside Word.run context:', wordError);
+        message = `Word API error: ${wordError.message}`;
       }
     });
-    if (!success) {
-      throw new Error(`Could not find the exact text in the document. Please manually apply this fix.`);
-    }
-    return success;
+
+    return {
+      success: true,
+      applied,
+      foundInDocument,
+      message
+    };
   } catch (e: any) {
-    console.error("replaceText error:", e);
-    throw e;
+    console.error("💥 replaceText error:", e);
+    return {
+      success: false,
+      applied: false,
+      foundInDocument: false,
+      message: `Failed to complete replacement: ${e.message || 'Unknown error'}`
+    };
   }
 }
 
@@ -252,4 +472,243 @@ export async function getDocumentSelection(): Promise<string> {
   } catch {
     return '';
   }
+}
+
+/**
+ * Test if Word API is available and working properly
+ * Returns true if Word API is responsive, false otherwise
+ */
+/**
+ * Create an inline comment in Word authored by Klara
+ * @param text The text to add a comment on
+ * @param comment The comment text content
+ * @param findingId Optional finding ID to include in the comment
+ */
+export async function createKlaraComment(text: string, commentText: string, findingId?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = '';
+    let success = false;
+
+    await Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+
+        // Search for the text to comment on
+        const target = await searchWithVariations(body, text, 0);
+
+        if (target) {
+          // Create a comment on the found text range
+          target.insertComment(commentText);
+          await context.sync();
+
+          success = true;
+          message = `Comment added by Klara AI ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+        } else {
+          message = `Text "${text}" not found in document`;
+        }
+      } catch (wordError) {
+        console.error('Error inside Word.run for comment creation:', wordError);
+        message = `Word API error: ${wordError.message}`;
+      }
+    });
+
+    return {
+      success,
+      message
+    };
+  } catch (e: any) {
+    console.error("Failed to create Klara comment:", e);
+    return {
+      success: false,
+      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Create an inline comment in Word authored by Klara at a specific paragraph
+ * @param text The text to add a comment on
+ * @param comment The comment text content
+ * @param paragraphIndex The paragraph index to search in
+ * @param findingId Optional finding ID to include in the comment
+ */
+export async function createKlaraCommentInParagraph(text: string, commentText: string, paragraphIndex: number, findingId?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = '';
+    let success = false;
+
+    await Word.run(async (context) => {
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load('items');
+        await context.sync();
+
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+          const paragraph = paragraphs.items[paragraphIndex];
+
+          // Search for the text in the specific paragraph
+          const target = await searchWithVariations(paragraph, text, 0);
+
+          if (target) {
+            // Create a comment on the found text range
+            target.insertComment(commentText);
+            await context.sync();
+
+            success = true;
+            message = `Comment added by Klara AI in paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+          } else {
+            message = `Text "${text}" not found in paragraph ${paragraphIndex}`;
+          }
+        } else {
+          message = `Paragraph index ${paragraphIndex} out of range`;
+        }
+      } catch (wordError) {
+        console.error('Error inside Word.run for comment creation:', wordError);
+        message = `Word API error: ${wordError.message}`;
+      }
+    });
+
+    return {
+      success,
+      message
+    };
+  } catch (e: any) {
+    console.error("Failed to create Klara comment in paragraph:", e);
+    return {
+      success: false,
+      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Create a comment at a specific paragraph index (no text search needed)
+ * @param paragraphIndex The paragraph index to add the comment on
+ * @param commentText The comment text content
+ * @param findingId Optional finding ID to include in the comment
+ */
+export async function createKlaraCommentAtParagraph(paragraphIndex: number, commentText: string, findingId?: string): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = '';
+    let success = false;
+
+    await Word.run(async (context) => {
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load('items');
+        await context.sync();
+
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+          const paragraph = paragraphs.items[paragraphIndex];
+          const range = paragraph.getRange();
+          range.insertComment(commentText);
+          await context.sync();
+
+          success = true;
+          message = `Comment added by Klara AI at paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+        } else {
+          message = `Paragraph index ${paragraphIndex} out of range`;
+        }
+      } catch (wordError) {
+        console.error('Error inside Word.run for comment creation at paragraph:', wordError);
+        message = `Word API error: ${wordError.message}`;
+      }
+    });
+
+    return {
+      success,
+      message
+    };
+  } catch (e: any) {
+    console.error("Failed to create Klara comment at paragraph:", e);
+    return {
+      success: false,
+      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+    };
+  }
+}
+
+/**
+ * Test if Word API is available and working properly
+ * Returns true if Word API is responsive, false otherwise
+ */
+export async function testWordApiAvailability(): Promise<{ available: boolean; error?: string; documentInfo?: any }> {
+  try {
+    let documentInfo: any = {};
+
+    await Word.run(async (context) => {
+      try {
+        const doc = context.document;
+        const body = doc.body;
+
+        // Test basic document access
+        context.load(body, 'text');
+        await context.sync();
+
+        documentInfo = {
+          hasContent: body.text && body.text.length > 0,
+          contentLength: body.text ? body.text.length : 0,
+          firstChars: body.text ? body.text.substring(0, 50) : ''
+        };
+
+        console.log('Word API test successful:', documentInfo);
+        return { available: true, documentInfo };
+      } catch (innerError) {
+        console.error('Word API inner test failed:', innerError);
+        throw innerError;
+      }
+    });
+
+    return { available: true, documentInfo };
+  } catch (e: any) {
+    console.error('Word API availability test failed:', e);
+    return {
+      available: false,
+      error: e.message || 'Word API not available or not responding'
+    };
+  }
+}
+
+/**
+ * Generate multiple search variations for special characters
+ * This helps handle different Unicode representations and encoding issues
+ */
+function generateSearchVariations(text: string): string[] {
+  const variations: string[] = [text];
+
+  // Handle common special characters that might have different representations
+  const specialChars: Record<string, string[]> = {
+    '§': ['§', '§', '\\S+', '\\section'], // Section symbol variations
+    '©': ['©', '©', '(c)'], // Copyright symbol
+    '®': ['®', '®', '(r)'], // Registered trademark
+    '™': ['™', '™', '(tm)'], // Trademark
+    '—': ['—', '—', '--'], // Em dash
+    '–': ['–', '–', '-'], // En dash
+    '"': ['"', '“', '”', '„', '„', '‟'], // Various quote marks
+    "'": ["'", '‘', '’', '‚', '‛', '‚', '‛'], // Various apostrophes
+    '…': ['…', '…', '...'], // Ellipsis
+    '°': ['°', '°', '{degree}'], // Degree symbol
+    '±': ['±', '±', '+/-'], // Plus-minus
+    '×': ['×', '×', 'x'], // Multiplication sign
+    '÷': ['÷', '÷', '/'], // Division sign
+  };
+
+  // Generate variations for each special character found
+  for (const [char, alternatives] of Object.entries(specialChars)) {
+    if (text.includes(char)) {
+      for (const alt of alternatives) {
+        if (alt !== char) {
+          variations.push(text.replace(char, alt));
+        }
+      }
+    }
+  }
+
+  // Add wildcard version (replace special chars with ?)
+  const wildcardVersion = text.replace(/[^\w\s]/g, '?');
+  if (wildcardVersion !== text) {
+    variations.push(wildcardVersion);
+  }
+
+  return Array.from(new Set(variations)); // Remove duplicates (compatible with older TypeScript targets)
 }

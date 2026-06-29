@@ -139,7 +139,7 @@ You need to run both the backend API server and the frontend Add-in server in se
 Open a terminal, navigate to the backend directory, and run the FastAPI server:
 
 ```powershell
-cd C:\Users\Int202613\Documents\Github\Klara\backend
+cd KlaraApp/backend
 uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 

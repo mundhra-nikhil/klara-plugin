@@ -165,12 +165,10 @@ export function TaskPane() {
       const { apiClient } = await import('../api/client');
       const docsRes = await apiClient.get('/documents');
       const docsList = docsRes.data.data || docsRes.data || [];
-      if (docsList.length > 0) {
-        const id = docsList[0].id;
-        setDocId(id);
-        const data = await qcApi.getFindings(id);
-        setFindings(data);
-      }
+      const id = docsList.length > 0 ? docsList[0].id : '11111111-1111-1111-1111-111111111111';
+      setDocId(id);
+      const data = await qcApi.getFindings(id);
+      setFindings(data);
     } catch {
       setFindings([]);
     }

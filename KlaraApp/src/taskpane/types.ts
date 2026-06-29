@@ -6,7 +6,7 @@ export type FindingType = 'format' | 'spacing' | 'numbering' | 'reference' | 'sp
 
 export type AIJobStatus = 'queued' | 'running' | 'analysing' | 'completed' | 'failed' | 'cancelled';
 
-export type AIJobType = 'full_analysis' | 'format_check' | 'citation_check' | 'spelling_check' | 'numbering_check';
+export type AIJobType = 'compliance_audit' | 'formatting_check' | 'style_validation' | 'proofreading' | 'pdf_comparison';
 
 export type UserRole =
   | 'intake_coordinator'
@@ -151,6 +151,8 @@ export interface ResolveFindingRequest {
   applied_text?: string;
   note?: string;
   resolution_notes?: string;
+  auto_resolved?: boolean;
+  not_found_in_document?: boolean;
 }
 
 export interface TriggerAIJobRequest {

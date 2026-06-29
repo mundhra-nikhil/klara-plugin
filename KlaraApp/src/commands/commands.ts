@@ -21,19 +21,12 @@ function action(event: Office.AddinCommands.Event) {
     persistent: true,
   };
 
-  // Show a notification message.
+  // Show a notification message (only available in mailbox-enabled hosts like Outlook).
   if (Office.context.mailbox?.item) {
     Office.context.mailbox.item.notificationMessages.replaceAsync(
       "ActionPerformanceNotification",
       message
     );
-  } else {
-    Office.displayNotification({
-      title: "Klara",
-      message: "Performed action.",
-      icon: "Icon.80x80",
-      persistent: true,
-    });
   }
 
   // Be sure to indicate when the add-in command function is complete.
