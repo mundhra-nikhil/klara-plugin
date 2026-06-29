@@ -183,7 +183,7 @@ def detect_alignment_issues(document):
                 "rule_name": "heading_alignment",
                 "formatting_fix": {
                     "type": "alignment",
-                    "value": "center",
+                    "value": "centered",
                     "description": "Center align the heading"
                 }
             }

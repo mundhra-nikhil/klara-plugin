@@ -85,13 +85,15 @@ To enable automated formatting fixes, the backend should return findings with th
 {
   "formatting_fix": {
     "type": "alignment",
-    "value": "center",
+    "value": "centered",
     "description": "Center align the heading"
   }
 }
 ```
 
-**Supported alignment values:** `'left'`, `'right'`, `'center'`, `'justified'`, `'distributed'`
+**Supported alignment values:** `'left'`, `'right'`, `'centered'`, `'justified'`
+
+Note: `'distributed'` is not supported in Word API and will fall back to `'left'`.
 
 ## Frontend Implementation
 

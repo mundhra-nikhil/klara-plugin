@@ -792,13 +792,12 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
         await context.sync();
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
-          const paragraph = paragraphs.items[paragraphIndex];
-          const format = paragraph.format;
+          const paragraph = paragraphs.items[paragraphIndex] as any;
 
           // Apply the formatting operation based on type
           switch (operation.type) {
             case 'keep_with_next':
-              format.keepWithNext = operation.value;
+              paragraph.keepWithNext = operation.value;
               message = operation.value
                 ? 'Enabled "Keep with next" to prevent orphan headings'
                 : 'Disabled "Keep with next"';
@@ -806,7 +805,7 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
               break;
 
             case 'page_break_before':
-              format.pageBreakBefore = operation.value;
+              paragraph.pageBreakBefore = operation.value;
               message = operation.value
                 ? 'Enabled page break before'
                 : 'Disabled page break before';
@@ -814,7 +813,7 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
               break;
 
             case 'widow_orphan_control':
-              format.widowControl = operation.value;
+              paragraph.widowControl = operation.value;
               message = operation.value
                 ? 'Enabled widow/orphan control'
                 : 'Disabled widow/orphan control';
@@ -823,7 +822,7 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
 
             case 'line_spacing':
               if (typeof operation.value === 'number') {
-                format.lineSpacing = operation.value;
+                paragraph.lineSpacing = operation.value;
                 message = `Set line spacing to ${operation.value}`;
                 applied = true;
               } else {
@@ -836,13 +835,13 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
               const alignmentMap: Record<string, Word.Alignment> = {
                 'left': Word.Alignment.left,
                 'right': Word.Alignment.right,
-                'center': Word.Alignment.center,
+                'center': Word.Alignment.centered,
                 'justified': Word.Alignment.justified,
-                'distributed': Word.Alignment.distributed
+                'distributed': Word.Alignment.left // fallback for distributed
               };
 
               if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
-                format.alignment = alignmentMap[operation.value];
+                paragraph.alignment = alignmentMap[operation.value];
                 message = `Set alignment to ${operation.value}`;
                 applied = true;
               } else {
@@ -909,12 +908,12 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
 
           if (paragraph.text && paragraph.text.includes(searchText)) {
             foundParagraphIndex = i;
-            const format = paragraph.format;
+            const paragraphAny = paragraph as any;
 
             // Apply the formatting operation based on type
             switch (operation.type) {
               case 'keep_with_next':
-                format.keepWithNext = operation.value;
+                paragraphAny.keepWithNext = operation.value;
                 message = operation.value
                   ? `Enabled "Keep with next" for paragraph containing "${searchText}"`
                   : `Disabled "Keep with next" for paragraph containing "${searchText}"`;
@@ -922,7 +921,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 break;
 
               case 'page_break_before':
-                format.pageBreakBefore = operation.value;
+                paragraphAny.pageBreakBefore = operation.value;
                 message = operation.value
                   ? `Enabled page break before for paragraph containing "${searchText}"`
                   : `Disabled page break before for paragraph containing "${searchText}"`;
@@ -930,7 +929,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 break;
 
               case 'widow_orphan_control':
-                format.widowControl = operation.value;
+                paragraphAny.widowControl = operation.value;
                 message = operation.value
                   ? `Enabled widow/orphan control for paragraph containing "${searchText}"`
                   : `Disabled widow/orphan control for paragraph containing "${searchText}"`;
@@ -939,7 +938,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
 
               case 'line_spacing':
                 if (typeof operation.value === 'number') {
-                  format.lineSpacing = operation.value;
+                  paragraphAny.lineSpacing = operation.value;
                   message = `Set line spacing to ${operation.value} for paragraph containing "${searchText}"`;
                   applied = true;
                 } else {
@@ -951,13 +950,13 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 const alignmentMap: Record<string, Word.Alignment> = {
                   'left': Word.Alignment.left,
                   'right': Word.Alignment.right,
-                  'center': Word.Alignment.center,
+                  'center': Word.Alignment.centered,
                   'justified': Word.Alignment.justified,
-                  'distributed': Word.Alignment.distributed
+                  'distributed': Word.Alignment.left // fallback for distributed
                 };
 
                 if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
-                  format.alignment = alignmentMap[operation.value];
+                  paragraphAny.alignment = alignmentMap[operation.value];
                   message = `Set alignment to ${operation.value} for paragraph containing "${searchText}"`;
                   applied = true;
                 } else {
