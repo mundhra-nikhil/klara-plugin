@@ -676,24 +676,79 @@ export async function testWordApiAvailability(): Promise<{ available: boolean; e
 function generateSearchVariations(text: string): string[] {
   const variations: string[] = [text];
 
+  // Normalize Unicode to NFC form (canonical decomposition + composition)
+  try {
+    variations.push(text.normalize('NFC'));
+  } catch {
+    // ignore normalization errors
+  }
+
+  // Replace non-breaking spaces with regular spaces
+  const noNBSP = text.replace(/\u00A0/g, ' ');
+  if (noNBSP !== text) {
+    variations.push(noNBSP);
+    // Also normalize the no-NBSP version
+    try {
+      variations.push(noNBSP.normalize('NFC'));
+    } catch {
+      // ignore
+    }
+  }
+
+  // Remove zero-width spaces
+  const noZWSP = text.replace(/\u200B/g, '');
+  if (noZWSP !== text) {
+    variations.push(noZWSP);
+  }
+
+  // Handle different dash types
+  const dashMap: Record<string, string> = {
+    '\u2013': '-',  // en-dash → hyphen
+    '\u2014': '--', // em-dash → double hyphen
+    '\u2012': '-',  // figure dash → hyphen
+  };
+  let normalizedDashes = text;
+  for (const [dash, replacement] of Object.entries(dashMap)) {
+    normalizedDashes = normalizedDashes.replace(new RegExp(dash, 'g'), replacement);
+  }
+  if (normalizedDashes !== text) {
+    variations.push(normalizedDashes);
+  }
+
+  // Handle different apostrophe/quote types
+  const apostropheMap: Record<string, string> = {
+    '\u2018': "'",  // left single quote
+    '\u2019': "'",  // right single quote
+    '\u02BC': "'",  // modifier letter apostrophe
+    '\u2032': "'",  // prime
+    '\u201A': "'",  // single low-9 quotation mark
+    '\u201B': "'",  // single high-reversed-9 quotation mark
+  };
+  let normalizedApostrophes = text;
+  for (const [apostrophe, replacement] of Object.entries(apostropheMap)) {
+    normalizedApostrophes = normalizedApostrophes.replace(new RegExp(apostrophe, 'g'), replacement);
+  }
+  if (normalizedApostrophes !== text) {
+    variations.push(normalizedApostrophes);
+  }
+
   // Handle common special characters that might have different representations
   const specialChars: Record<string, string[]> = {
-    '§': ['§', '§', '\\S+', '\\section'], // Section symbol variations
-    '©': ['©', '©', '(c)'], // Copyright symbol
-    '®': ['®', '®', '(r)'], // Registered trademark
-    '™': ['™', '™', '(tm)'], // Trademark
-    '—': ['—', '—', '--'], // Em dash
-    '–': ['–', '–', '-'], // En dash
-    '"': ['"', '“', '”', '„', '„', '‟'], // Various quote marks
-    "'": ["'", '‘', '’', '‚', '‛', '‚', '‛'], // Various apostrophes
-    '…': ['…', '…', '...'], // Ellipsis
-    '°': ['°', '°', '{degree}'], // Degree symbol
-    '±': ['±', '±', '+/-'], // Plus-minus
-    '×': ['×', '×', 'x'], // Multiplication sign
-    '÷': ['÷', '÷', '/'], // Division sign
+    '§': ['§', '§', '\\S+', '\\section'],
+    '©': ['©', '©', '(c)'],
+    '®': ['®', '®', '(r)'],
+    '™': ['™', '™', '(tm)'],
+    '—': ['—', '—', '--'],
+    '–': ['–', '–', '-'],
+    '"': ['"', '\u201C', '\u201D', '\u201E', '\u201F', '\u201A', '\u201B'],
+    "'": ["'", '\u2018', '\u2019', '\u201A', '\u201B', '\u02BC', '\u2032'],
+    '…': ['…', '…', '...'],
+    '°': ['°', '°', '{degree}'],
+    '±': ['±', '±', '+/-'],
+    '×': ['×', '×', 'x'],
+    '÷': ['÷', '÷', '/'],
   };
 
-  // Generate variations for each special character found
   for (const [char, alternatives] of Object.entries(specialChars)) {
     if (text.includes(char)) {
       for (const alt of alternatives) {
@@ -710,5 +765,5 @@ function generateSearchVariations(text: string): string[] {
     variations.push(wildcardVersion);
   }
 
-  return Array.from(new Set(variations)); // Remove duplicates (compatible with older TypeScript targets)
+  return Array.from(new Set(variations));
 }

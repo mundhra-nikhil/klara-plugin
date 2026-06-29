@@ -11,6 +11,10 @@ const SEVERITY_COLORS: Record<string, string> = {
   suggestion: 'var(--muted)',
 };
 
+const isActionableFinding = (f: QCFinding): boolean => {
+  return !!(f.original_text && f.replacement_text && f.original_text !== f.replacement_text);
+};
+
 interface SuggestionsTabProps {
   findings: QCFinding[];
   onRefresh: () => void;
@@ -26,6 +30,8 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
   const openFindings = findings.filter(
     (f) => f.status === 'open' && !acceptedIds.has(f.id) && !rejectedIds.has(f.id) && !commentedIds.has(f.id)
   );
+
+  const actionableFindings = openFindings.filter(isActionableFinding);
 
   const handleNavigate = useCallback(async (finding: QCFinding) => {
     await clearHighlights();
@@ -259,7 +265,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
     const appliedIds: string[] = [];
     const autoResolvedIds: string[] = [];
     const failedIds: string[] = [];
-    const pending = openFindings.filter((f) => f.original_text && f.replacement_text);
+    const pending = actionableFindings;
 
     console.log(`Starting batch accept of ${pending.length} findings...`);
 
@@ -332,7 +338,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
     }
 
     setLoading(false);
-  }, [openFindings, onRefresh]);
+  }, [actionableFindings, onRefresh]);
 
   const handleRejectAll = useCallback(async () => {
     try {
@@ -371,7 +377,7 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
   return (
     <div>
-      {openFindings.length > 0 && (
+      {actionableFindings.length > 0 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
           <button className="klara-btn klara-btn-primary klara-btn-sm" onClick={handleAcceptAll} disabled={loading}>
             Accept All
@@ -429,13 +435,15 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
             >
               Comment
             </button>
-            <button
-              className="klara-btn klara-btn-primary klara-btn-sm"
-              onClick={(e) => { e.stopPropagation(); handleAccept(finding); }}
-              disabled={loading}
-            >
-              Accept
-            </button>
+            {isActionableFinding(finding) && (
+              <button
+                className="klara-btn klara-btn-primary klara-btn-sm"
+                onClick={(e) => { e.stopPropagation(); handleAccept(finding); }}
+                disabled={loading}
+              >
+                Accept
+              </button>
+            )}
           </div>
         </div>
       ))}

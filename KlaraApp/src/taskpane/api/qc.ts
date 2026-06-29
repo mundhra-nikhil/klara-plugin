@@ -11,9 +11,9 @@ export const qcApi = {
         ...item,
         title: loc.title || item.title || '',
         rule_name: loc.rule_name || item.rule_name || '',
-        original_text: loc.original_text || item.original_text || '',
+        original_text: loc.original_text ?? item.original_text ?? undefined,
         anchor_text: loc.anchor_text || '',
-        replacement_text: loc.replacement_text || item.replacement_text || '',
+        replacement_text: loc.replacement_text ?? item.replacement_text ?? undefined,
         paragraph_index: loc.paragraph,
       };
     });

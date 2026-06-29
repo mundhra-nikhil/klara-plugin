@@ -444,8 +444,10 @@ def _finalize_finding(f: dict, page_map: list[int]) -> dict:
     location.setdefault("confidence", f.get("confidence"))
     original = f.get("original_text")
     replacement = f.get("replacement_text")
-    location.setdefault("original_text", original)
-    location.setdefault("replacement_text", replacement)
+    if original is not None:
+        location.setdefault("original_text", original)
+    if replacement is not None:
+        location.setdefault("replacement_text", replacement)
     location.setdefault("result", poc_result(rule_id))
     # The class the review UI splits on — automatic only when a real text
     # substitution exists, otherwise visual (a flag the reviewer eyeballs).
