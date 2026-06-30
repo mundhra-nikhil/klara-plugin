@@ -40,6 +40,10 @@ class ResolveFindingRequest(BaseModel):
     # the finding so the side-by-side viewer can render the edited result.
     applied_text: Optional[str] = None
     note: Optional[str] = None
+    # Additional fields for frontend compatibility
+    resolution_notes: Optional[str] = None
+    auto_resolved: Optional[bool] = None
+    not_found_in_document: Optional[bool] = None
 
 
 class CreateReviewRequest(BaseModel):

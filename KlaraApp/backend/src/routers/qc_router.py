@@ -145,18 +145,24 @@ async def list_checklists(
 ):
     """List available QC checklists, optionally filtered by document type."""
     logger.info("Entering list_checklists", function="list_checklists", action="entry", type=type, user_id=current_user.id)
-    
+
     # Map type to DocumentType enum
     doc_type_enum = None
     if type:
-        if type.lower() == "litigation":
-            doc_type_enum = DocumentType.FORMATTING
-        else:
-            try:
-                doc_type_enum = DocumentType(type.lower())
-            except ValueError:
+        try:
+            # Direct mapping first
+            doc_type_enum = DocumentType(type.lower())
+        except ValueError:
+            # Fallback mappings for common aliases
+            type_lower = type.lower()
+            if type_lower in ["document_review", "review", "qc"]:
                 doc_type_enum = DocumentType.FORMATTING
- 
+            elif type_lower in ["litigation", "litigation_document"]:
+                doc_type_enum = DocumentType.LITIGATION
+            else:
+                # Default to formatting if unknown
+                doc_type_enum = DocumentType.FORMATTING
+
     result = await checklist_service.list_checklists(db, document_type=doc_type_enum)
     logger.info("Exiting list_checklists", function="list_checklists", action="exit", checklist_count=len(result))
     return result

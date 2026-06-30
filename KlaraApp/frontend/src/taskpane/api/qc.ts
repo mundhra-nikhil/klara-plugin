@@ -6,15 +6,19 @@ export const qcApi = {
     const { data } = await apiClient.get('/qc/findings', { params: { document_id: documentId } });
     const items = data.data ?? data;
     return items.map((item: any) => {
+      // Backend now provides most fields directly, fallback to location object for backwards compatibility
       const loc = (typeof item.location === 'object' && item.location) ? item.location : {};
       return {
         ...item,
-        title: loc.title || item.title || '',
-        rule_name: loc.rule_name || item.rule_name || '',
-        original_text: loc.original_text ?? item.original_text ?? undefined,
-        anchor_text: loc.anchor_text || '',
-        replacement_text: loc.replacement_text ?? item.replacement_text ?? undefined,
-        paragraph_index: loc.paragraph,
+        type: item.finding_type || item.type, // Map finding_type to type
+        title: item.title || loc.title || item.title || '',
+        rule_name: item.rule_name || loc.rule_name || '',
+        original_text: item.original_text ?? loc.original_text ?? item.original_text ?? undefined,
+        anchor_text: item.anchor_text ?? loc.anchor_text ?? '',
+        replacement_text: item.replacement_text ?? loc.replacement_text ?? item.replacement_text ?? undefined,
+        paragraph_index: item.paragraph_index ?? loc.paragraph ?? loc.paragraph_index,
+        // Keep suggested_fix for backwards compatibility
+        suggested_fix: item.suggested_fix || item.replacement_text || loc.replacement_text,
       };
     });
   },

@@ -28,7 +28,7 @@ export function ChecksTab({ findings = [], docId, onRefresh }: { findings?: QCFi
     setLoading(true);
     setError('');
     try {
-      const checklists = await qcApi.getChecklists('document_review');
+      const checklists = await qcApi.getChecklists('formatting');
       if (checklists.length > 0) {
         let allItems = checklists[0].items;
         
