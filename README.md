@@ -132,30 +132,22 @@ npm install
 
 ### Run Locally
 
-You need to run both the backend API server and the frontend Add-in server in separate terminals.
-
-#### 1. Run the Backend API Server
-
-Open a terminal, navigate to the backend directory, and run the FastAPI server:
-
-```powershell
-cd KlaraApp/backend
-uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-#### 2. Run the Frontend Add-in Server
-
-Open a second terminal, navigate to the Add-in frontend directory, and start the webpack development server:
+You can run the backend API server, the frontend Add-in server, and launch Microsoft Word all in a **single terminal** using our unified development script.
 
 ```powershell
 cd KlaraApp
-npm run dev-server
+npm run dev:all
 ```
+
+This single command will:
+1. Spin up the backend API, Postgres, Redis, and Qdrant in Docker Compose.
+2. Start the frontend webpack-dev-server on port 3000.
+3. Launch Microsoft Word and automatically attach the add-in.
 
 #### Additional Scripts
 
 ```bash
-# Start the dev server with auto-debugging in Word
+# Start just the frontend and debug in Word (if backend is already running)
 npm start
 
 # Build for production

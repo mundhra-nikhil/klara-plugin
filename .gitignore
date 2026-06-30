@@ -10,3 +10,9 @@ office-js-docs-pr/
 __pycache__/
 *.py[cod]
 *.egg-info/
+
+# Logs
+*.log
+.backend.log
+.frontend.log
+.word.log

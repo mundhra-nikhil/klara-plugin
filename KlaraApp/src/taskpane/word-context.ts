@@ -172,21 +172,21 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
                 const originalText = target.text;
                 console.log(`🎯 Found text to replace: "${originalText}"`);
 
-                target.insertText(replacement, Word.InsertLocation.replace);
+                const newRange = target.insertText(replacement, "Replace");
                 await context.sync();
 
                 // Verify the change was applied
-                target.load('text');
+                newRange.load('text');
                 await context.sync();
 
-                if (target.text === replacement) {
+                if (newRange.text === replacement) {
                   applied = true;
                   console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${foundIndex}`);
                   message = `Replaced in paragraph ${foundIndex} (original index ${paragraphIndex} was incorrect)`;
                 } else {
                   console.warn(`⚠️ Replacement may not have worked as expected`);
-                  applied = true;
-                  message = `Replacement completed in paragraph ${foundIndex}`;
+                  applied = false;
+                  message = `Replacement completed with unexpected result`;
                 }
               }
             } else {
@@ -212,20 +212,20 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
               const originalText = target.text;
               console.log(`🎯 Found text to replace: "${originalText}"`);
 
-              target.insertText(replacement, Word.InsertLocation.replace);
+              const newRange = target.insertText(replacement, "Replace");
               await context.sync();
 
               // Verify the change was applied
-              target.load('text');
+              newRange.load('text');
               await context.sync();
 
-              if (target.text === replacement) {
+              if (newRange.text === replacement) {
                 applied = true;
                 console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${paragraphIndex}`);
                 message = `Successfully replaced text in paragraph ${paragraphIndex}`;
               } else {
-                console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${target.text}"`);
-                applied = true;
+                console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`);
+                applied = false;
                 message = `Replacement completed with unexpected result`;
               }
             } else {
@@ -248,21 +248,21 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
             const originalText = bodyTarget.text;
             console.log(`🎯 Body search found: "${originalText}"`);
 
-            bodyTarget.insertText(replacement, Word.InsertLocation.replace);
+            const newRange = bodyTarget.insertText(replacement, "Replace");
             await context.sync();
 
             // Verify the change was applied
-            bodyTarget.load('text');
+            newRange.load('text');
             await context.sync();
 
-            if (bodyTarget.text === replacement) {
+            if (newRange.text === replacement) {
               applied = true;
               foundInDocument = true;
               console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" via body search`);
               message = `Found and replaced via document-wide search`;
             } else {
               console.warn(`⚠️ Body fallback replacement may not have worked as expected`);
-              applied = true;
+              applied = false;
               message = `Replacement completed via body search`;
             }
           } else {
@@ -377,21 +377,21 @@ export async function replaceText(text: string, replacement: string, occurrence:
           const originalText = target.text;
           console.log(`🎯 Found text: "${originalText}"`);
 
-          target.insertText(replacement, Word.InsertLocation.replace);
+          const newRange = target.insertText(replacement, "Replace");
           await context.sync();
 
           // Verify the change was applied
-          target.load('text');
+          newRange.load('text');
           await context.sync();
 
-          if (target.text === replacement) {
+          if (newRange.text === replacement) {
             applied = true;
             foundInDocument = true;
             console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" at occurrence ${occurrence}`);
             message = `Successfully replaced "${originalText}" with "${replacement}"`;
           } else {
-            console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${target.text}"`);
-            applied = true;
+            console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`);
+            applied = false;
             foundInDocument = true;
             message = `Replacement completed with unexpected result`;
           }
