@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { aiJobsApi } from '../api/ai-jobs';
 import type { AIJob } from '../types';
 
@@ -31,6 +32,7 @@ const JOB_TYPES = [
 ];
 
 export function WorkflowsTab({ docId }: { docId: string | null }) {
+  const queryClient = useQueryClient();
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -47,6 +49,7 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
   }, []);
 
   const pollJob = useCallback(async (jobId: string) => {
+    console.log(`Starting to poll job ${jobId}`);
     let failures = 0;
     const poll = async () => {
       if (!isMounted.current) return;
@@ -54,12 +57,18 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
         const job = await aiJobsApi.getJobStatus(jobId);
         if (!isMounted.current) return;
         failures = 0;
+        console.log(`Job ${jobId} status: ${job.status}, progress: ${job.progress_pct || 0}%`);
         setActiveJob(job);
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
+          console.log(`Job ${jobId} finished with status: ${job.status}`);
+          if (job.status === 'completed') {
+            queryClient.invalidateQueries({ queryKey: ['findings', docId] });
+          }
           return;
         }
         pollTimerRef.current = setTimeout(poll, 3000) as any;
-      } catch {
+      } catch (err) {
+        console.error(`Failed to poll job ${jobId}:`, err);
         failures++;
         if (failures >= 5) {
           if (isMounted.current) setError('Failed to get job status after multiple retries.');
@@ -79,20 +88,23 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
 
     try {
       if (!docId) {
-        throw new Error('No document selected');
+        throw new Error('No document selected. Please make sure a document is available.');
       }
+      console.log(`Triggering AI job: ${jobType} for document: ${docId}`);
       const job = await aiJobsApi.triggerJob({
         document_id: docId,
         job_type: (jobType as any) || 'formatting_check',
       });
+      console.log(`AI job created successfully: ${job.id}`);
       setActiveJob(job);
       pollJob(job.id);
     } catch (e: any) {
+      console.error('Failed to trigger AI job:', e);
       setError(e.message || 'Failed to trigger job');
     } finally {
       setLoading(false);
     }
-  }, [pollJob]);
+  }, [pollJob, docId, queryClient]);
 
   const handleCancel = useCallback(async () => {
     if (!activeJob) return;
@@ -115,6 +127,12 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
 
   return (
     <div>
+      {!docId && !error && (
+        <div style={{ padding: '14px', fontSize: 11, color: 'var(--muted-2)', textAlign: 'center' }}>
+          No document available. Please create or select a document first.
+        </div>
+      )}
+
       {activeJob && (
         <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>

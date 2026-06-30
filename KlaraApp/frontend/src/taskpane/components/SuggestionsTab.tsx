@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import type { QCFinding } from '../types';
 import type { TextReplacementResult, FormattingResult } from '../word-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { qcApi } from '../api/qc';
-import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting } from '../word-context';
+import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting, createSimulatedTrackedChange, createSimulatedTrackedChangeInParagraph, acceptSimulatedTrackedChange, rejectSimulatedTrackedChange, undoSimulatedTrackedChange, undoDirectReplacement } from '../word-context';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'var(--danger)',
@@ -25,10 +26,15 @@ const isActionableFinding = (f: QCFinding): boolean => {
 
 interface SuggestionsTabProps {
   findings: QCFinding[];
-  onRefresh: () => void;
+  docId: string | null;
 }
 
-export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
+export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
+  const queryClient = useQueryClient();
+
+  const onRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['findings', docId] });
+  }, [queryClient, docId]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [acceptedIds, setAcceptedIds] = useState<Set<string>>(new Set());
@@ -37,6 +43,10 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
   const openFindings = findings.filter(
     (f) => f.status === 'open' && !acceptedIds.has(f.id) && !rejectedIds.has(f.id) && !commentedIds.has(f.id)
+  );
+
+  const resolvedFindings = findings.filter(
+    (f) => f.status !== 'open' || acceptedIds.has(f.id) || rejectedIds.has(f.id) || commentedIds.has(f.id)
   );
 
   const actionableFindings = openFindings.filter(isActionableFinding);
@@ -83,14 +93,39 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
         throw new Error('Cannot accept finding: missing original or replacement text');
       }
 
-      console.log(`Accepting finding ${finding.id}: replacing "${text}" with "${replacement}"`);
+      // Handle accepting a simulated tracked change
+      if (commentedIds.has(finding.id)) {
+        console.log(`Accepting simulated tracked change ${finding.id}`);
+        const acceptResult = await acceptSimulatedTrackedChange(finding.id, replacement);
+        if (!acceptResult.success) {
+          throw new Error(acceptResult.message);
+        }
+
+        await qcApi.resolveFinding(finding.id, {
+          status: 'accepted',
+          applied_text: replacement,
+        });
+
+        setAcceptedIds((prev) => new Set(prev).add(finding.id));
+        setRejectedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+        setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+        
+        setError('');
+        onRefresh();
+        return;
+      }
+
+      console.log(`Starting text replacement for finding ${finding.id}: "${text}" -> "${replacement}"`);
 
       let result: TextReplacementResult;
 
+      // Try paragraph-specific replacement first if we have the index
       if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+        console.log(`Trying paragraph-specific replacement at index ${finding.paragraph_index}`);
         result = await replaceTextInParagraph(text, replacement, finding.paragraph_index);
       } else {
-        result = await replaceText(text, replacement, 0);
+        console.log(`No paragraph index, doing global search and replace`);
+        result = await replaceText(text, replacement, 0); // Always use instance 0 for now
       }
 
       console.log(`Replacement result:`, result);
@@ -251,6 +286,10 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
   const handleReject = useCallback(async (finding: QCFinding) => {
     try {
+      if (commentedIds.has(finding.id)) {
+         const result = await rejectSimulatedTrackedChange(finding.id, finding.original_text || "");
+         if (!result.success) throw new Error(result.message);
+      }
       await qcApi.resolveFinding(finding.id, {
         status: 'rejected',
       });
@@ -282,18 +321,26 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
 
       let result: { success: boolean; message: string };
 
-      if (text && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-        result = await createKlaraCommentInParagraph(text, `Klara AI: ${commentText}`, finding.paragraph_index, finding.id);
-        if (!result.success && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-          console.log(`Text search failed, falling back to paragraph-based comment`);
-          result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
+      if (finding.replacement_text && finding.original_text) {
+        if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+          result = await createSimulatedTrackedChangeInParagraph(finding.original_text, finding.replacement_text, commentText, finding.paragraph_index, finding.id);
+        } else {
+          result = await createSimulatedTrackedChange(finding.original_text, finding.replacement_text, commentText, finding.id);
         }
-      } else if (text) {
-        result = await createKlaraComment(text, `Klara AI: ${commentText}`, finding.id);
-      } else if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-        result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
       } else {
-        throw new Error('Cannot add comment: missing text anchor and paragraph index');
+        if (text && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+          result = await createKlaraCommentInParagraph(text, `Klara AI: ${commentText}`, finding.paragraph_index, finding.id);
+          if (!result.success && finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+            console.log(`Text search failed, falling back to paragraph-based comment`);
+            result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
+          }
+        } else if (text) {
+          result = await createKlaraComment(text, `Klara AI: ${commentText}`, finding.id);
+        } else if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+          result = await createKlaraCommentAtParagraph(finding.paragraph_index, `Klara AI: ${commentText}`, finding.id);
+        } else {
+          throw new Error('Cannot add comment: missing text anchor and paragraph index');
+        }
       }
 
       console.log(`Comment result:`, result);
@@ -311,7 +358,9 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
         console.log(`Finding ${finding.id} resolved with comment`);
 
         setCommentedIds((prev) => new Set(prev).add(finding.id));
-        setAcceptedIds((prev) => new Set(prev).add(finding.id)); // Also add to accepted to remove from list
+        if (!finding.replacement_text) {
+          setAcceptedIds((prev) => new Set(prev).add(finding.id)); // Only auto-accept standard comments
+        }
         setRejectedIds((prev) => {
           const next = new Set(prev);
           next.delete(finding.id);
@@ -341,6 +390,37 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
       setLoading(false);
     }
   }, [onRefresh]);
+
+  const handleUndo = useCallback(async (finding: QCFinding) => {
+    setLoading(true);
+    setError('');
+    try {
+      if (acceptedIds.has(finding.id)) {
+        if (finding.replacement_text && finding.original_text) {
+          await undoDirectReplacement(finding.replacement_text, finding.original_text, finding.paragraph_index);
+        }
+      } else if (commentedIds.has(finding.id)) {
+        if (finding.original_text) {
+          await undoSimulatedTrackedChange(finding.id, finding.original_text);
+        }
+      }
+
+      await qcApi.resolveFinding(finding.id, {
+        status: 'open',
+      });
+
+      setAcceptedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+      setRejectedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+      setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+      
+      onRefresh();
+    } catch (e: any) {
+      console.error(`Failed to undo finding ${finding.id}:`, e);
+      setError(`Failed to undo for "${finding.title}": ${e.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [acceptedIds, rejectedIds, commentedIds, onRefresh]);
 
   const handleAcceptAll = useCallback(async () => {
     setLoading(true);
@@ -525,42 +605,127 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
       )}
 
       {openFindings.map((finding) => (
-        <div
-          key={finding.id}
-          className="klara-card"
-          style={{ cursor: 'pointer' }}
-          onClick={() => handleNavigate(finding)}
-        >
-          <div className="klara-card-label">
-            {finding.rule_name || finding.type} · {finding.severity}
+        <SuggestionCard 
+          key={finding.id} 
+          finding={finding} 
+          isResolved={false}
+          onNavigate={() => handleNavigate(finding)}
+          onAccept={() => finding.formatting_fix ? handleAcceptFormatting(finding) : handleAccept(finding)}
+          onReject={() => handleReject(finding)}
+          onComment={() => handleComment(finding)}
+          onUndo={() => handleUndo(finding)}
+          loading={loading}
+        />
+      ))}
+
+      {resolvedFindings.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <div style={{ padding: '8px 14px', fontSize: 12, fontWeight: 'bold', color: 'var(--muted)', textTransform: 'uppercase' }}>
+            Resolved Suggestions ({resolvedFindings.length})
           </div>
-          <div className="klara-card-title">{finding.title}</div>
-          {finding.description && (
-            <div className="klara-card-desc">{finding.description}</div>
+          {resolvedFindings.map((finding) => (
+            <SuggestionCard 
+              key={finding.id} 
+              finding={finding} 
+              isResolved={true}
+              isCommented={commentedIds.has(finding.id)}
+              onNavigate={() => handleNavigate(finding)}
+              onAccept={() => finding.formatting_fix ? handleAcceptFormatting(finding) : handleAccept(finding)}
+              onReject={() => handleReject(finding)}
+              onComment={() => handleComment(finding)}
+              onUndo={() => handleUndo(finding)}
+              loading={loading}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Add a helper component to simplify rendering
+function SuggestionCard({ 
+  finding, 
+  isResolved, 
+  isCommented,
+  onNavigate, 
+  onAccept, 
+  onReject, 
+  onComment, 
+  onUndo, 
+  loading 
+}: any) {
+  return (
+    <div
+      className={`klara-card ${isResolved && !isCommented ? 'klara-card-resolved' : ''}`}
+      style={{ cursor: 'pointer', opacity: isResolved && !isCommented ? 0.7 : 1 }}
+      onClick={onNavigate}
+    >
+      <div className="klara-card-label">
+        {finding.rule_name || finding.type} · {finding.severity}
+        {isResolved && (
+          <span style={{ marginLeft: 8, color: 'var(--success)', fontWeight: 'bold' }}>
+            {finding.status === 'accepted' ? '✓ Accepted' : finding.status === 'rejected' ? '✗ Rejected' : '✓ Commented'}
+          </span>
+        )}
+      </div>
+      <div className="klara-card-title">{finding.title}</div>
+      {finding.description && (
+        <div className="klara-card-desc">{finding.description}</div>
+      )}
+      {(finding.original_text || finding.replacement_text) && (
+        <div className="klara-diff">
+          {finding.original_text && (
+            <div className="klara-diff-del">− {finding.original_text}</div>
           )}
-          {(finding.original_text || finding.replacement_text) && (
-            <div className="klara-diff">
-              {finding.original_text && (
-                <div className="klara-diff-del">− {finding.original_text}</div>
-              )}
-              {finding.replacement_text && (
-                <div className="klara-diff-add">+ {finding.replacement_text}</div>
-              )}
-              {finding.suggested_fix && !finding.replacement_text && (
-                <div className="klara-diff-add">+ {finding.suggested_fix}</div>
-              )}
-            </div>
+          {finding.replacement_text && (
+            <div className="klara-diff-add">+ {finding.replacement_text}</div>
           )}
-          <div className="klara-btn-group">
+          {finding.suggested_fix && !finding.replacement_text && (
+            <div className="klara-diff-add">+ {finding.suggested_fix}</div>
+          )}
+        </div>
+      )}
+      <div className="klara-btn-group">
+        {isResolved ? (
+          <>
             <button
               className="klara-btn klara-btn-ghost klara-btn-sm"
-              onClick={(e) => { e.stopPropagation(); handleReject(finding); }}
+              onClick={(e) => { e.stopPropagation(); onUndo(); }}
+              disabled={loading}
+            >
+              Undo
+            </button>
+            {isCommented && (
+              <>
+                <button
+                  className="klara-btn klara-btn-ghost klara-btn-sm"
+                  onClick={(e) => { e.stopPropagation(); onReject(); }}
+                  disabled={loading}
+                >
+                  Reject
+                </button>
+                <button
+                  className="klara-btn klara-btn-primary klara-btn-sm"
+                  onClick={(e) => { e.stopPropagation(); onAccept(); }}
+                  disabled={loading}
+                >
+                  Accept
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            <button
+              className="klara-btn klara-btn-ghost klara-btn-sm"
+              onClick={(e) => { e.stopPropagation(); onReject(); }}
             >
               Reject
             </button>
             <button
               className="klara-btn klara-btn-ghost klara-btn-sm"
-              onClick={(e) => { e.stopPropagation(); handleComment(finding); }}
+              onClick={(e) => { e.stopPropagation(); onComment(); }}
               disabled={loading}
             >
               Comment
@@ -568,22 +733,15 @@ export function SuggestionsTab({ findings, onRefresh }: SuggestionsTabProps) {
             {isActionableFinding(finding) && (
               <button
                 className="klara-btn klara-btn-primary klara-btn-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (finding.formatting_fix) {
-                    handleAcceptFormatting(finding);
-                  } else {
-                    handleAccept(finding);
-                  }
-                }}
+                onClick={(e) => { e.stopPropagation(); onAccept(); }}
                 disabled={loading}
               >
                 Accept
               </button>
             )}
-          </div>
-        </div>
-      ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }

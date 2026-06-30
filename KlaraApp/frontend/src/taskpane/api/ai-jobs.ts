@@ -1,9 +1,9 @@
-import { apiClient } from './client';
-import type { AIJob, Finding, TriggerAIJobRequest } from '../types';
+import { apiClient } from "./client";
+import type { AIJob, Finding, TriggerAIJobRequest } from "../types";
 
 export const aiJobsApi = {
   triggerJob: async (req: TriggerAIJobRequest): Promise<AIJob> => {
-    const { data } = await apiClient.post('/ai-jobs', req);
+    const { data } = await apiClient.post("/ai-jobs", req);
     return data.data ?? data;
   },
 

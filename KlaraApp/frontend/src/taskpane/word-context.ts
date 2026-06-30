@@ -1,4 +1,7 @@
-export async function searchAndSelect(text: string, occurrence: number): Promise<Word.Range | null> {
+export async function searchAndSelect(
+  text: string,
+  occurrence: number
+): Promise<Word.Range | null> {
   try {
     if (occurrence < 0) return null;
     let range: Word.Range | null = null;
@@ -9,7 +12,7 @@ export async function searchAndSelect(text: string, occurrence: number): Promise
         ignorePunct: false,
         ignoreSpace: false,
       });
-      context.load(searchResults, 'items');
+      context.load(searchResults, "items");
       await context.sync();
 
       if (occurrence >= 0 && searchResults.items.length > occurrence) {
@@ -40,7 +43,7 @@ export async function selectParagraph(index: number, color?: string): Promise<Wo
     let range: Word.Range | null = null;
     await Word.run(async (context) => {
       const paragraphs = context.document.body.paragraphs;
-      paragraphs.load('items');
+      paragraphs.load("items");
       await context.sync();
 
       if (index >= 0 && index < paragraphs.items.length) {
@@ -108,26 +111,32 @@ export interface TextReplacementResult {
   message: string;
 }
 
-export async function replaceTextInParagraph(text: string, replacement: string, paragraphIndex: number): Promise<TextReplacementResult> {
+export async function replaceTextInParagraph(
+  text: string,
+  replacement: string,
+  paragraphIndex: number
+): Promise<TextReplacementResult> {
   let applied = false;
   let foundInDocument = false;
   let actualParagraphIndex: number | undefined = undefined;
-  let message = '';
+  let message = "";
 
   try {
     await Word.run(async (context) => {
       try {
         const paragraphs = context.document.body.paragraphs;
-        paragraphs.load('items');
+        paragraphs.load("items");
         await context.sync();
 
-        console.log(`🔍 Searching for "${text}" in paragraph ${paragraphIndex} of ${paragraphs.items.length} total paragraphs`);
+        console.log(
+          `🔍 Searching for "${text}" in paragraph ${paragraphIndex} of ${paragraphs.items.length} total paragraphs`
+        );
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
           const paragraph = paragraphs.items[paragraphIndex];
 
           // First, let's see what's actually in the paragraph for debugging
-          paragraph.load('text');
+          paragraph.load("text");
           await context.sync();
           const paragraphText = paragraph.text;
           console.log(`📋 Paragraph ${paragraphIndex} content: "${paragraphText.trim()}"`);
@@ -142,11 +151,11 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
             // Search the entire document to find where the text actually is
             const body = context.document.body;
             const allParagraphs = body.paragraphs;
-            context.load(allParagraphs, 'items/text');
+            context.load(allParagraphs, "items/text");
             await context.sync();
 
             let foundIndex = -1;
-            let foundContent = '';
+            let foundContent = "";
 
             for (let i = 0; i < allParagraphs.items.length; i++) {
               const p = allParagraphs.items[i];
@@ -156,13 +165,17 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
                 foundContent = p.text;
                 foundInDocument = true;
                 actualParagraphIndex = i;
-                console.log(`🎯 Found text "${text}" in actual paragraph ${i}: "${foundContent.trim()}"`);
+                console.log(
+                  `🎯 Found text "${text}" in actual paragraph ${i}: "${foundContent.trim()}"`
+                );
                 break;
               }
             }
 
             if (foundIndex !== -1) {
-              console.log(`✅ Found text in paragraph ${foundIndex}, proceeding with replacement there`);
+              console.log(
+                `✅ Found text in paragraph ${foundIndex}, proceeding with replacement there`
+              );
 
               // Use the correct paragraph
               const correctParagraph = allParagraphs.items[foundIndex];
@@ -176,12 +189,14 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
                 await context.sync();
 
                 // Verify the change was applied
-                newRange.load('text');
+                newRange.load("text");
                 await context.sync();
 
                 if (newRange.text === replacement) {
                   applied = true;
-                  console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${foundIndex}`);
+                  console.log(
+                    `✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${foundIndex}`
+                  );
                   message = `Replaced in paragraph ${foundIndex} (original index ${paragraphIndex} was incorrect)`;
                 } else {
                   console.warn(`⚠️ Replacement may not have worked as expected`);
@@ -197,7 +212,9 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
 
             // If still not found, try the enhanced search in the specified paragraph anyway
             if (!applied) {
-              console.log(`🔄 Trying enhanced search in specified paragraph ${paragraphIndex} anyway...`);
+              console.log(
+                `🔄 Trying enhanced search in specified paragraph ${paragraphIndex} anyway...`
+              );
             }
           } else {
             foundInDocument = true;
@@ -216,25 +233,33 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
               await context.sync();
 
               // Verify the change was applied
-              newRange.load('text');
+              newRange.load("text");
               await context.sync();
 
               if (newRange.text === replacement) {
                 applied = true;
-                console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${paragraphIndex}`);
+                console.log(
+                  `✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${paragraphIndex}`
+                );
                 message = `Successfully replaced text in paragraph ${paragraphIndex}`;
               } else {
-                console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`);
+                console.warn(
+                  `⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`
+                );
                 applied = false;
                 message = `Replacement completed with unexpected result`;
               }
             } else {
-              console.warn(`❌ No search results found for "${text}" in paragraph ${paragraphIndex}`);
+              console.warn(
+                `❌ No search results found for "${text}" in paragraph ${paragraphIndex}`
+              );
               message = `Could not find exact match for "${text}" in paragraph ${paragraphIndex}`;
             }
           }
         } else {
-          console.warn(`❌ Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})`);
+          console.warn(
+            `❌ Paragraph index ${paragraphIndex} out of range (0-${paragraphs.items.length - 1})`
+          );
           message = `Paragraph index ${paragraphIndex} out of range`;
         }
 
@@ -252,13 +277,15 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
             await context.sync();
 
             // Verify the change was applied
-            newRange.load('text');
+            newRange.load("text");
             await context.sync();
 
             if (newRange.text === replacement) {
               applied = true;
               foundInDocument = true;
-              console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" via body search`);
+              console.log(
+                `✅ Successfully replaced "${originalText}" with "${replacement}" via body search`
+              );
               message = `Found and replaced via document-wide search`;
             } else {
               console.warn(`⚠️ Body fallback replacement may not have worked as expected`);
@@ -271,7 +298,7 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
           }
         }
       } catch (wordError) {
-        console.error('💥 Error inside Word.run context:', wordError);
+        console.error("💥 Error inside Word.run context:", wordError);
         message = `Word API error: ${wordError.message}`;
       }
     });
@@ -281,7 +308,7 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
       applied,
       foundInDocument,
       actualParagraphIndex,
-      message
+      message,
     };
   } catch (e: any) {
     console.error("💥 replaceTextInParagraph error:", e);
@@ -289,7 +316,7 @@ export async function replaceTextInParagraph(text: string, replacement: string, 
       success: false,
       applied: false,
       foundInDocument: false,
-      message: `Failed to complete replacement: ${e.message || 'Unknown error'}`
+      message: `Failed to complete replacement: ${e.message || "Unknown error"}`,
     };
   }
 }
@@ -316,7 +343,7 @@ async function searchWithVariations(
         ignorePunct: false,
         ignoreSpace: false,
       });
-      searchResults.context.load(searchResults, 'items');
+      searchResults.context.load(searchResults, "items");
       await searchResults.context.sync();
 
       if (searchResults.items.length > occurrence) {
@@ -330,7 +357,7 @@ async function searchWithVariations(
         ignorePunct: true,
         ignoreSpace: true,
       });
-      searchResults.context.load(searchResults, 'items');
+      searchResults.context.load(searchResults, "items");
       await searchResults.context.sync();
 
       if (searchResults.items.length > occurrence) {
@@ -340,9 +367,9 @@ async function searchWithVariations(
 
       // Try wildcard for special characters
       if (/[^\w\s]/.test(variation)) {
-        const wildcard = variation.replace(/[^\w\s]/g, '?');
+        const wildcard = variation.replace(/[^\w\s]/g, "?");
         searchResults = searchScope.search(wildcard, { matchWildcards: true });
-        searchResults.context.load(searchResults, 'items');
+        searchResults.context.load(searchResults, "items");
         await searchResults.context.sync();
 
         if (searchResults.items.length > occurrence) {
@@ -360,10 +387,14 @@ async function searchWithVariations(
   return null;
 }
 
-export async function replaceText(text: string, replacement: string, occurrence: number = 0): Promise<TextReplacementResult> {
+export async function replaceText(
+  text: string,
+  replacement: string,
+  occurrence: number = 0
+): Promise<TextReplacementResult> {
   let applied = false;
   let foundInDocument = false;
-  let message = '';
+  let message = "";
 
   try {
     await Word.run(async (context) => {
@@ -381,16 +412,20 @@ export async function replaceText(text: string, replacement: string, occurrence:
           await context.sync();
 
           // Verify the change was applied
-          newRange.load('text');
+          newRange.load("text");
           await context.sync();
 
           if (newRange.text === replacement) {
             applied = true;
             foundInDocument = true;
-            console.log(`✅ Successfully replaced "${originalText}" with "${replacement}" at occurrence ${occurrence}`);
+            console.log(
+              `✅ Successfully replaced "${originalText}" with "${replacement}" at occurrence ${occurrence}`
+            );
             message = `Successfully replaced "${originalText}" with "${replacement}"`;
           } else {
-            console.warn(`⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`);
+            console.warn(
+              `⚠️ Replacement may not have worked as expected. Original: "${originalText}", Expected: "${replacement}", Got: "${newRange.text}"`
+            );
             applied = false;
             foundInDocument = true;
             message = `Replacement completed with unexpected result`;
@@ -400,7 +435,7 @@ export async function replaceText(text: string, replacement: string, occurrence:
           message = `Text "${text}" not found in document`;
         }
       } catch (wordError) {
-        console.error('💥 Error inside Word.run context:', wordError);
+        console.error("💥 Error inside Word.run context:", wordError);
         message = `Word API error: ${wordError.message}`;
       }
     });
@@ -409,7 +444,7 @@ export async function replaceText(text: string, replacement: string, occurrence:
       success: true,
       applied,
       foundInDocument,
-      message
+      message,
     };
   } catch (e: any) {
     console.error("💥 replaceText error:", e);
@@ -417,31 +452,31 @@ export async function replaceText(text: string, replacement: string, occurrence:
       success: false,
       applied: false,
       foundInDocument: false,
-      message: `Failed to complete replacement: ${e.message || 'Unknown error'}`
+      message: `Failed to complete replacement: ${e.message || "Unknown error"}`,
     };
   }
 }
 
 export async function getDocumentMetadata(): Promise<{ title: string; author: string }> {
   try {
-    let title = '';
-    let author = '';
+    let title = "";
+    let author = "";
     await Word.run(async (context) => {
       const props = context.document.properties;
-      context.load(props, 'title');
+      context.load(props, "title");
       await context.sync();
-      title = props.title || '';
+      title = props.title || "";
     }).catch(() => {});
 
     try {
       await Word.run(async (context) => {
         const authorProp = (context.document as any).getCustomProperties?.() || null;
         if (authorProp) {
-          context.load(authorProp, 'items');
+          context.load(authorProp, "items");
           await context.sync();
-          const authorItem = authorProp.tryGetByKey('Author');
+          const authorItem = authorProp.tryGetByKey("Author");
           if (authorItem && !authorItem.isNull) {
-            author = authorItem.value?.toString() || '';
+            author = authorItem.value?.toString() || "";
           }
         }
       }).catch(() => {});
@@ -451,22 +486,22 @@ export async function getDocumentMetadata(): Promise<{ title: string; author: st
 
     return { title, author };
   } catch {
-    return { title: '', author: '' };
+    return { title: "", author: "" };
   }
 }
 
 export async function getDocumentSelection(): Promise<string> {
   try {
-    let text = '';
+    let text = "";
     await Word.run(async (context) => {
       const selection = context.document.getSelection();
-      context.load(selection, 'text');
+      context.load(selection, "text");
       await context.sync();
-      text = selection.text || '';
+      text = selection.text || "";
     }).catch(() => {});
     return text;
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -480,9 +515,13 @@ export async function getDocumentSelection(): Promise<string> {
  * @param comment The comment text content
  * @param findingId Optional finding ID to include in the comment
  */
-export async function createKlaraComment(text: string, commentText: string, findingId?: string): Promise<{ success: boolean; message: string }> {
+export async function createKlaraComment(
+  text: string,
+  commentText: string,
+  findingId?: string
+): Promise<{ success: boolean; message: string }> {
   try {
-    let message = '';
+    let message = "";
     let success = false;
 
     await Word.run(async (context) => {
@@ -498,25 +537,25 @@ export async function createKlaraComment(text: string, commentText: string, find
           await context.sync();
 
           success = true;
-          message = `Comment added by Klara AI ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+          message = `Comment added by Klara AI ${findingId ? `(Finding ID: ${findingId})` : ""}`;
         } else {
           message = `Text "${text}" not found in document`;
         }
       } catch (wordError) {
-        console.error('Error inside Word.run for comment creation:', wordError);
+        console.error("Error inside Word.run for comment creation:", wordError);
         message = `Word API error: ${wordError.message}`;
       }
     });
 
     return {
       success,
-      message
+      message,
     };
   } catch (e: any) {
     console.error("Failed to create Klara comment:", e);
     return {
       success: false,
-      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+      message: `Failed to create comment: ${e.message || "Unknown error"}`,
     };
   }
 }
@@ -528,15 +567,20 @@ export async function createKlaraComment(text: string, commentText: string, find
  * @param paragraphIndex The paragraph index to search in
  * @param findingId Optional finding ID to include in the comment
  */
-export async function createKlaraCommentInParagraph(text: string, commentText: string, paragraphIndex: number, findingId?: string): Promise<{ success: boolean; message: string }> {
+export async function createKlaraCommentInParagraph(
+  text: string,
+  commentText: string,
+  paragraphIndex: number,
+  findingId?: string
+): Promise<{ success: boolean; message: string }> {
   try {
-    let message = '';
+    let message = "";
     let success = false;
 
     await Word.run(async (context) => {
       try {
         const paragraphs = context.document.body.paragraphs;
-        paragraphs.load('items');
+        paragraphs.load("items");
         await context.sync();
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
@@ -551,7 +595,7 @@ export async function createKlaraCommentInParagraph(text: string, commentText: s
             await context.sync();
 
             success = true;
-            message = `Comment added by Klara AI in paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+            message = `Comment added by Klara AI in paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ""}`;
           } else {
             message = `Text "${text}" not found in paragraph ${paragraphIndex}`;
           }
@@ -559,20 +603,20 @@ export async function createKlaraCommentInParagraph(text: string, commentText: s
           message = `Paragraph index ${paragraphIndex} out of range`;
         }
       } catch (wordError) {
-        console.error('Error inside Word.run for comment creation:', wordError);
+        console.error("Error inside Word.run for comment creation:", wordError);
         message = `Word API error: ${wordError.message}`;
       }
     });
 
     return {
       success,
-      message
+      message,
     };
   } catch (e: any) {
     console.error("Failed to create Klara comment in paragraph:", e);
     return {
       success: false,
-      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+      message: `Failed to create comment: ${e.message || "Unknown error"}`,
     };
   }
 }
@@ -583,15 +627,19 @@ export async function createKlaraCommentInParagraph(text: string, commentText: s
  * @param commentText The comment text content
  * @param findingId Optional finding ID to include in the comment
  */
-export async function createKlaraCommentAtParagraph(paragraphIndex: number, commentText: string, findingId?: string): Promise<{ success: boolean; message: string }> {
+export async function createKlaraCommentAtParagraph(
+  paragraphIndex: number,
+  commentText: string,
+  findingId?: string
+): Promise<{ success: boolean; message: string }> {
   try {
-    let message = '';
+    let message = "";
     let success = false;
 
     await Word.run(async (context) => {
       try {
         const paragraphs = context.document.body.paragraphs;
-        paragraphs.load('items');
+        paragraphs.load("items");
         await context.sync();
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
@@ -601,25 +649,25 @@ export async function createKlaraCommentAtParagraph(paragraphIndex: number, comm
           await context.sync();
 
           success = true;
-          message = `Comment added by Klara AI at paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ''}`;
+          message = `Comment added by Klara AI at paragraph ${paragraphIndex} ${findingId ? `(Finding ID: ${findingId})` : ""}`;
         } else {
           message = `Paragraph index ${paragraphIndex} out of range`;
         }
       } catch (wordError) {
-        console.error('Error inside Word.run for comment creation at paragraph:', wordError);
+        console.error("Error inside Word.run for comment creation at paragraph:", wordError);
         message = `Word API error: ${wordError.message}`;
       }
     });
 
     return {
       success,
-      message
+      message,
     };
   } catch (e: any) {
     console.error("Failed to create Klara comment at paragraph:", e);
     return {
       success: false,
-      message: `Failed to create comment: ${e.message || 'Unknown error'}`
+      message: `Failed to create comment: ${e.message || "Unknown error"}`,
     };
   }
 }
@@ -628,7 +676,11 @@ export async function createKlaraCommentAtParagraph(paragraphIndex: number, comm
  * Test if Word API is available and working properly
  * Returns true if Word API is responsive, false otherwise
  */
-export async function testWordApiAvailability(): Promise<{ available: boolean; error?: string; documentInfo?: any }> {
+export async function testWordApiAvailability(): Promise<{
+  available: boolean;
+  error?: string;
+  documentInfo?: any;
+}> {
   try {
     let documentInfo: any = {};
 
@@ -638,29 +690,29 @@ export async function testWordApiAvailability(): Promise<{ available: boolean; e
         const body = doc.body;
 
         // Test basic document access
-        context.load(body, 'text');
+        context.load(body, "text");
         await context.sync();
 
         documentInfo = {
           hasContent: body.text && body.text.length > 0,
           contentLength: body.text ? body.text.length : 0,
-          firstChars: body.text ? body.text.substring(0, 50) : ''
+          firstChars: body.text ? body.text.substring(0, 50) : "",
         };
 
-        console.log('Word API test successful:', documentInfo);
+        console.log("Word API test successful:", documentInfo);
         return { available: true, documentInfo };
       } catch (innerError) {
-        console.error('Word API inner test failed:', innerError);
+        console.error("Word API inner test failed:", innerError);
         throw innerError;
       }
     });
 
     return { available: true, documentInfo };
   } catch (e: any) {
-    console.error('Word API availability test failed:', e);
+    console.error("Word API availability test failed:", e);
     return {
       available: false,
-      error: e.message || 'Word API not available or not responding'
+      error: e.message || "Word API not available or not responding",
     };
   }
 }
@@ -674,38 +726,38 @@ function generateSearchVariations(text: string): string[] {
 
   // Normalize Unicode to NFC form (canonical decomposition + composition)
   try {
-    variations.push(text.normalize('NFC'));
+    variations.push(text.normalize("NFC"));
   } catch {
     // ignore normalization errors
   }
 
   // Replace non-breaking spaces with regular spaces
-  const noNBSP = text.replace(/\u00A0/g, ' ');
+  const noNBSP = text.replace(/\u00A0/g, " ");
   if (noNBSP !== text) {
     variations.push(noNBSP);
     // Also normalize the no-NBSP version
     try {
-      variations.push(noNBSP.normalize('NFC'));
+      variations.push(noNBSP.normalize("NFC"));
     } catch {
       // ignore
     }
   }
 
   // Remove zero-width spaces
-  const noZWSP = text.replace(/\u200B/g, '');
+  const noZWSP = text.replace(/\u200B/g, "");
   if (noZWSP !== text) {
     variations.push(noZWSP);
   }
 
   // Handle different dash types
   const dashMap: Record<string, string> = {
-    '\u2013': '-',  // en-dash → hyphen
-    '\u2014': '--', // em-dash → double hyphen
-    '\u2012': '-',  // figure dash → hyphen
+    "\u2013": "-", // en-dash → hyphen
+    "\u2014": "--", // em-dash → double hyphen
+    "\u2012": "-", // figure dash → hyphen
   };
   let normalizedDashes = text;
   for (const [dash, replacement] of Object.entries(dashMap)) {
-    normalizedDashes = normalizedDashes.replace(new RegExp(dash, 'g'), replacement);
+    normalizedDashes = normalizedDashes.replace(new RegExp(dash, "g"), replacement);
   }
   if (normalizedDashes !== text) {
     variations.push(normalizedDashes);
@@ -713,16 +765,16 @@ function generateSearchVariations(text: string): string[] {
 
   // Handle different apostrophe/quote types
   const apostropheMap: Record<string, string> = {
-    '\u2018': "'",  // left single quote
-    '\u2019': "'",  // right single quote
-    '\u02BC': "'",  // modifier letter apostrophe
-    '\u2032': "'",  // prime
-    '\u201A': "'",  // single low-9 quotation mark
-    '\u201B': "'",  // single high-reversed-9 quotation mark
+    "\u2018": "'", // left single quote
+    "\u2019": "'", // right single quote
+    "\u02BC": "'", // modifier letter apostrophe
+    "\u2032": "'", // prime
+    "\u201A": "'", // single low-9 quotation mark
+    "\u201B": "'", // single high-reversed-9 quotation mark
   };
   let normalizedApostrophes = text;
   for (const [apostrophe, replacement] of Object.entries(apostropheMap)) {
-    normalizedApostrophes = normalizedApostrophes.replace(new RegExp(apostrophe, 'g'), replacement);
+    normalizedApostrophes = normalizedApostrophes.replace(new RegExp(apostrophe, "g"), replacement);
   }
   if (normalizedApostrophes !== text) {
     variations.push(normalizedApostrophes);
@@ -730,19 +782,19 @@ function generateSearchVariations(text: string): string[] {
 
   // Handle common special characters that might have different representations
   const specialChars: Record<string, string[]> = {
-    '§': ['§', '§', '\\S+', '\\section'],
-    '©': ['©', '©', '(c)'],
-    '®': ['®', '®', '(r)'],
-    '™': ['™', '™', '(tm)'],
-    '—': ['—', '—', '--'],
-    '–': ['–', '–', '-'],
-    '"': ['"', '\u201C', '\u201D', '\u201E', '\u201F', '\u201A', '\u201B'],
-    "'": ["'", '\u2018', '\u2019', '\u201A', '\u201B', '\u02BC', '\u2032'],
-    '…': ['…', '…', '...'],
-    '°': ['°', '°', '{degree}'],
-    '±': ['±', '±', '+/-'],
-    '×': ['×', '×', 'x'],
-    '÷': ['÷', '÷', '/'],
+    "§": ["§", "§", "\\S+", "\\section"],
+    "©": ["©", "©", "(c)"],
+    "®": ["®", "®", "(r)"],
+    "™": ["™", "™", "(tm)"],
+    "—": ["—", "—", "--"],
+    "–": ["–", "–", "-"],
+    '"': ['"', "\u201C", "\u201D", "\u201E", "\u201F", "\u201A", "\u201B"],
+    "'": ["'", "\u2018", "\u2019", "\u201A", "\u201B", "\u02BC", "\u2032"],
+    "…": ["…", "…", "..."],
+    "°": ["°", "°", "{degree}"],
+    "±": ["±", "±", "+/-"],
+    "×": ["×", "×", "x"],
+    "÷": ["÷", "÷", "/"],
   };
 
   for (const [char, alternatives] of Object.entries(specialChars)) {
@@ -756,7 +808,7 @@ function generateSearchVariations(text: string): string[] {
   }
 
   // Add wildcard version (replace special chars with ?)
-  const wildcardVersion = text.replace(/[^\w\s]/g, '?');
+  const wildcardVersion = text.replace(/[^\w\s]/g, "?");
   if (wildcardVersion !== text) {
     variations.push(wildcardVersion);
   }
@@ -779,16 +831,19 @@ export interface FormattingResult {
  * @param paragraphIndex The index of the paragraph to format
  * @param operation The formatting operation to apply
  */
-export async function applyParagraphFormatting(paragraphIndex: number, operation: any): Promise<FormattingResult> {
+export async function applyParagraphFormatting(
+  paragraphIndex: number,
+  operation: any
+): Promise<FormattingResult> {
   try {
-    let message = '';
+    let message = "";
     let applied = false;
     let actualParagraphIndex = paragraphIndex;
 
     await Word.run(async (context) => {
       try {
         const paragraphs = context.document.body.paragraphs;
-        paragraphs.load('items');
+        paragraphs.load("items");
         await context.sync();
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
@@ -796,7 +851,7 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
 
           // Apply the formatting operation based on type
           switch (operation.type) {
-            case 'keep_with_next':
+            case "keep_with_next":
               paragraph.keepWithNext = operation.value;
               message = operation.value
                 ? 'Enabled "Keep with next" to prevent orphan headings'
@@ -804,43 +859,43 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
               applied = true;
               break;
 
-            case 'page_break_before':
+            case "page_break_before":
               paragraph.pageBreakBefore = operation.value;
               message = operation.value
-                ? 'Enabled page break before'
-                : 'Disabled page break before';
+                ? "Enabled page break before"
+                : "Disabled page break before";
               applied = true;
               break;
 
-            case 'widow_orphan_control':
+            case "widow_orphan_control":
               paragraph.widowControl = operation.value;
               message = operation.value
-                ? 'Enabled widow/orphan control'
-                : 'Disabled widow/orphan control';
+                ? "Enabled widow/orphan control"
+                : "Disabled widow/orphan control";
               applied = true;
               break;
 
-            case 'line_spacing':
-              if (typeof operation.value === 'number') {
+            case "line_spacing":
+              if (typeof operation.value === "number") {
                 paragraph.lineSpacing = operation.value;
                 message = `Set line spacing to ${operation.value}`;
                 applied = true;
               } else {
-                message = 'Invalid line spacing value';
+                message = "Invalid line spacing value";
               }
               break;
 
-            case 'alignment':
+            case "alignment":
               // Map string alignment values to Word.Alignment enum
               const alignmentMap: Record<string, Word.Alignment> = {
-                'left': Word.Alignment.left,
-                'right': Word.Alignment.right,
-                'center': Word.Alignment.centered,
-                'justified': Word.Alignment.justified,
-                'distributed': Word.Alignment.left // fallback for distributed
+                left: Word.Alignment.left,
+                right: Word.Alignment.right,
+                center: Word.Alignment.centered,
+                justified: Word.Alignment.justified,
+                distributed: Word.Alignment.left, // fallback for distributed
               };
 
-              if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
+              if (typeof operation.value === "string" && alignmentMap[operation.value]) {
                 paragraph.alignment = alignmentMap[operation.value];
                 message = `Set alignment to ${operation.value}`;
                 applied = true;
@@ -860,7 +915,7 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
           applied = false;
         }
       } catch (wordError) {
-        console.error('Error inside Word.run for formatting:', wordError);
+        console.error("Error inside Word.run for formatting:", wordError);
         message = `Word API error: ${wordError.message}`;
         applied = false;
       }
@@ -870,14 +925,14 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
       success: true,
       applied,
       message,
-      paragraphIndex: actualParagraphIndex
+      paragraphIndex: actualParagraphIndex,
     };
   } catch (e: any) {
-    console.error('Failed to apply paragraph formatting:', e);
+    console.error("Failed to apply paragraph formatting:", e);
     return {
       success: false,
       applied: false,
-      message: `Failed to apply formatting: ${e.message || 'Unknown error'}`
+      message: `Failed to apply formatting: ${e.message || "Unknown error"}`,
     };
   }
 }
@@ -887,9 +942,12 @@ export async function applyParagraphFormatting(paragraphIndex: number, operation
  * @param searchText The text to search for
  * @param operation The formatting operation to apply
  */
-export async function searchAndApplyFormatting(searchText: string, operation: any): Promise<FormattingResult> {
+export async function searchAndApplyFormatting(
+  searchText: string,
+  operation: any
+): Promise<FormattingResult> {
   try {
-    let message = '';
+    let message = "";
     let applied = false;
     let foundParagraphIndex: number | undefined = undefined;
 
@@ -897,13 +955,13 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
       try {
         const body = context.document.body;
         const paragraphs = body.paragraphs;
-        paragraphs.load('items');
+        paragraphs.load("items");
         await context.sync();
 
         // Search for the paragraph containing the text
         for (let i = 0; i < paragraphs.items.length; i++) {
           const paragraph = paragraphs.items[i];
-          paragraph.load('text');
+          paragraph.load("text");
           await context.sync();
 
           if (paragraph.text && paragraph.text.includes(searchText)) {
@@ -912,7 +970,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
 
             // Apply the formatting operation based on type
             switch (operation.type) {
-              case 'keep_with_next':
+              case "keep_with_next":
                 paragraphAny.keepWithNext = operation.value;
                 message = operation.value
                   ? `Enabled "Keep with next" for paragraph containing "${searchText}"`
@@ -920,7 +978,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 applied = true;
                 break;
 
-              case 'page_break_before':
+              case "page_break_before":
                 paragraphAny.pageBreakBefore = operation.value;
                 message = operation.value
                   ? `Enabled page break before for paragraph containing "${searchText}"`
@@ -928,7 +986,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 applied = true;
                 break;
 
-              case 'widow_orphan_control':
+              case "widow_orphan_control":
                 paragraphAny.widowControl = operation.value;
                 message = operation.value
                   ? `Enabled widow/orphan control for paragraph containing "${searchText}"`
@@ -936,26 +994,26 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
                 applied = true;
                 break;
 
-              case 'line_spacing':
-                if (typeof operation.value === 'number') {
+              case "line_spacing":
+                if (typeof operation.value === "number") {
                   paragraphAny.lineSpacing = operation.value;
                   message = `Set line spacing to ${operation.value} for paragraph containing "${searchText}"`;
                   applied = true;
                 } else {
-                  message = 'Invalid line spacing value';
+                  message = "Invalid line spacing value";
                 }
                 break;
 
-              case 'alignment':
+              case "alignment":
                 const alignmentMap: Record<string, Word.Alignment> = {
-                  'left': Word.Alignment.left,
-                  'right': Word.Alignment.right,
-                  'center': Word.Alignment.centered,
-                  'justified': Word.Alignment.justified,
-                  'distributed': Word.Alignment.left // fallback for distributed
+                  left: Word.Alignment.left,
+                  right: Word.Alignment.right,
+                  center: Word.Alignment.centered,
+                  justified: Word.Alignment.justified,
+                  distributed: Word.Alignment.left, // fallback for distributed
                 };
 
-                if (typeof operation.value === 'string' && alignmentMap[operation.value]) {
+                if (typeof operation.value === "string" && alignmentMap[operation.value]) {
                   paragraphAny.alignment = alignmentMap[operation.value];
                   message = `Set alignment to ${operation.value} for paragraph containing "${searchText}"`;
                   applied = true;
@@ -979,7 +1037,7 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
           applied = false;
         }
       } catch (wordError) {
-        console.error('Error inside Word.run for search and format:', wordError);
+        console.error("Error inside Word.run for search and format:", wordError);
         message = `Word API error: ${wordError.message}`;
         applied = false;
       }
@@ -989,14 +1047,264 @@ export async function searchAndApplyFormatting(searchText: string, operation: an
       success: true,
       applied,
       message,
-      paragraphIndex: foundParagraphIndex
+      paragraphIndex: foundParagraphIndex,
     };
   } catch (e: any) {
-    console.error('Failed to search and apply formatting:', e);
+    console.error("Failed to search and apply formatting:", e);
     return {
       success: false,
       applied: false,
-      message: `Failed to apply formatting: ${e.message || 'Unknown error'}`
+      message: `Failed to apply formatting: ${e.message || "Unknown error"}`,
     };
+  }
+}
+
+/**
+ * Creates a simulated tracked change for a text replacement
+ */
+export async function createSimulatedTrackedChange(
+  text: string,
+  replacementText: string,
+  commentText: string,
+  findingId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = "";
+    let success = false;
+
+    await Word.run(async (context) => {
+      try {
+        const body = context.document.body;
+        const target = await searchWithVariations(body, text, 0);
+
+        if (target) {
+          const originalText = target.text;
+          const suggestedReplacement = " " + replacementText;
+
+          // Format original text
+          target.font.strikeThrough = true;
+          target.font.color = "#FF0000";
+
+          // Insert replacement text
+          const replacementRange = target.insertText(suggestedReplacement, Word.InsertLocation.after);
+          
+          // Format replacement text
+          replacementRange.font.color = "#0000FF";
+          replacementRange.font.underline = Word.UnderlineType.single;
+
+          // Wrap in a Content Control
+          const fullRange = target.expandTo(replacementRange);
+          const cc = fullRange.insertContentControl();
+          cc.title = `Klara Suggestion: ${findingId}`;
+          cc.tag = findingId;
+
+          // Add a comment to the original selection
+          target.insertComment(`[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`);
+          
+          await context.sync();
+          success = true;
+          message = `Simulated tracked change created for ${findingId}`;
+        } else {
+          message = `Text "${text}" not found in document`;
+        }
+      } catch (wordError) {
+        console.error("Error creating simulated track change:", wordError);
+        message = `Word API error: ${wordError.message}`;
+      }
+    });
+
+    return { success, message };
+  } catch (e: any) {
+    console.error("Failed to create simulated track change:", e);
+    return { success: false, message: e.message || "Unknown error" };
+  }
+}
+
+/**
+ * Creates a simulated tracked change for a text replacement in a specific paragraph
+ */
+export async function createSimulatedTrackedChangeInParagraph(
+  text: string,
+  replacementText: string,
+  commentText: string,
+  paragraphIndex: number,
+  findingId: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = "";
+    let success = false;
+
+    await Word.run(async (context) => {
+      try {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load("items");
+        await context.sync();
+
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+          const paragraph = paragraphs.items[paragraphIndex];
+          const target = await searchWithVariations(paragraph, text, 0);
+
+          if (target) {
+            const originalText = target.text;
+            const suggestedReplacement = " " + replacementText;
+
+            target.font.strikeThrough = true;
+            target.font.color = "#FF0000";
+
+            const replacementRange = target.insertText(suggestedReplacement, Word.InsertLocation.after);
+            replacementRange.font.color = "#0000FF";
+            replacementRange.font.underline = Word.UnderlineType.single;
+
+            const fullRange = target.expandTo(replacementRange);
+            const cc = fullRange.insertContentControl();
+            cc.title = `Klara Suggestion: ${findingId}`;
+            cc.tag = findingId;
+
+            target.insertComment(`[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`);
+            
+            await context.sync();
+            success = true;
+            message = `Simulated tracked change created in paragraph ${paragraphIndex}`;
+          } else {
+            message = `Text "${text}" not found in paragraph ${paragraphIndex}`;
+          }
+        } else {
+          message = `Paragraph index ${paragraphIndex} out of range`;
+        }
+      } catch (wordError) {
+        console.error("Error creating simulated track change:", wordError);
+        message = `Word API error: ${wordError.message}`;
+      }
+    });
+
+    return { success, message };
+  } catch (e: any) {
+    console.error("Failed to create simulated track change:", e);
+    return { success: false, message: e.message || "Unknown error" };
+  }
+}
+
+/**
+ * Accepts a simulated tracked change by applying the replacement text and removing the wrapper
+ */
+export async function acceptSimulatedTrackedChange(
+  findingId: string,
+  replacementText: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = "";
+    let success = false;
+
+    await Word.run(async (context) => {
+      const controls = context.document.contentControls.getByTag(findingId);
+      controls.load("items");
+      await context.sync();
+
+      if (controls.items.length > 0) {
+        const cc = controls.items[0];
+        cc.clear();
+        cc.insertText(replacementText, "Replace");
+        cc.delete(true); // Keep the content
+        await context.sync();
+        success = true;
+        message = "Successfully accepted simulated tracked change.";
+      } else {
+        message = "Simulated tracked change not found in document.";
+      }
+    });
+
+    return { success, message };
+  } catch (e: any) {
+    console.error("Failed to accept simulated track change:", e);
+    return { success: false, message: e.message || "Unknown error" };
+  }
+}
+
+/**
+ * Rejects a simulated tracked change by reverting to the original text and removing the wrapper
+ */
+export async function rejectSimulatedTrackedChange(
+  findingId: string,
+  originalText: string
+): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = "";
+    let success = false;
+
+    await Word.run(async (context) => {
+      const controls = context.document.contentControls.getByTag(findingId);
+      controls.load("items");
+      await context.sync();
+
+      if (controls.items.length > 0) {
+        const cc = controls.items[0];
+        cc.clear();
+        cc.insertText(originalText, "Replace");
+        cc.delete(true); // Keep the content
+        await context.sync();
+        success = true;
+        message = "Successfully rejected simulated tracked change.";
+      } else {
+        message = "Simulated tracked change not found in document.";
+      }
+    });
+
+    return { success, message };
+  } catch (e: any) {
+    console.error("Failed to reject simulated track change:", e);
+    return { success: false, message: e.message || "Unknown error" };
+  }
+}
+
+/**
+ * Undoes a simulated tracked change completely, reverting to the original text and removing the wrapper
+ */
+export async function undoSimulatedTrackedChange(
+  findingId: string,
+  originalText: string
+): Promise<{ success: boolean; message: string }> {
+  return rejectSimulatedTrackedChange(findingId, originalText); // Functionally identical
+}
+
+/**
+ * Undoes a direct replacement
+ */
+export async function undoDirectReplacement(
+  replacementText: string,
+  originalText: string,
+  paragraphIndex?: number
+): Promise<{ success: boolean; message: string }> {
+  try {
+    let message = "";
+    let success = false;
+
+    await Word.run(async (context) => {
+      let target: Word.Range | null = null;
+      if (paragraphIndex !== undefined) {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load("items");
+        await context.sync();
+        if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
+           target = await searchWithVariations(paragraphs.items[paragraphIndex], replacementText, 0);
+        }
+      }
+      if (!target) {
+         target = await searchWithVariations(context.document.body, replacementText, 0);
+      }
+      
+      if (target) {
+        target.insertText(originalText, "Replace");
+        await context.sync();
+        success = true;
+        message = "Successfully reverted direct replacement.";
+      } else {
+        message = "Replacement text not found in document.";
+      }
+    });
+
+    return { success, message };
+  } catch (e: any) {
+    console.error("Failed to undo direct replacement:", e);
+    return { success: false, message: e.message || "Unknown error" };
   }
 }

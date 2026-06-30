@@ -3,6 +3,7 @@ import type { Finding, QCFinding, ChatMessage } from '../types';
 import { qcApi } from '../api/qc';
 import { authApi } from '../api/auth';
 import { setTokens, clearTokens, getAccessToken } from '../api/client';
+import { useFindings } from '../hooks/useFindings';
 import { SuggestionsTab } from './SuggestionsTab';
 import { ChecksTab } from './ChecksTab';
 import { WorkflowsTab } from './WorkflowsTab';
@@ -124,10 +125,11 @@ export function TaskPane() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'suggestions' | 'checks' | 'workflows'>('suggestions');
-  const [findings, setFindings] = useState<QCFinding[]>([]);
   const [docId, setDocId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { data: findings = [] } = useFindings(docId);
 
   useEffect(() => {
     const stored = getAccessToken();
@@ -159,30 +161,25 @@ export function TaskPane() {
     setUser(null);
   }, []);
 
-  const loadFindings = useCallback(async () => {
+  const loadDocument = useCallback(async () => {
     if (!token) return;
     try {
       const { apiClient } = await import('../api/client');
+      console.log('Loading documents...');
       const docsRes = await apiClient.get('/documents');
       const docsList = docsRes.data.data || docsRes.data || [];
       const id = docsList.length > 0 ? docsList[0].id : null;
       setDocId(id);
-      if (id) {
-        const data = await qcApi.getFindings(id);
-        setFindings(data);
-      } else {
-        setFindings([]);
-      }
-    } catch {
-      setFindings([]);
+    } catch (error) {
+      console.error('Failed to load documents:', error);
     }
   }, [token]);
 
   useEffect(() => {
-    if ((activeTab === 'suggestions' || activeTab === 'checks') && token) {
-      loadFindings();
+    if (token) {
+      loadDocument();
     }
-  }, [activeTab, token, loadFindings]);
+  }, [token, loadDocument]);
 
   const openFindingsCount = findings.filter(f => f.status === 'open').length;
 
@@ -240,9 +237,9 @@ export function TaskPane() {
 
       <div className="klara-content">
         {activeTab === 'suggestions' && (
-          <SuggestionsTab findings={findings} onRefresh={loadFindings} />
+          <SuggestionsTab findings={findings} docId={docId} />
         )}
-        {activeTab === 'checks' && <ChecksTab findings={findings} docId={docId} onRefresh={loadFindings} />}
+        {activeTab === 'checks' && <ChecksTab findings={findings} docId={docId} />}
         {activeTab === 'workflows' && <WorkflowsTab docId={docId} />}
       </div>
 

@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from "./client";
 
 export interface PocRule {
   id: number;
@@ -21,12 +21,12 @@ export interface MS365Config {
 
 export const configApi = {
   getPocRules: async (): Promise<PocRule[]> => {
-    const { data } = await apiClient.get('/config/poc-rules');
+    const { data } = await apiClient.get("/config/poc-rules");
     return data.data ?? data;
   },
 
   getMS365Config: async (): Promise<MS365Config> => {
-    const { data } = await apiClient.get('/config/ms365');
+    const { data } = await apiClient.get("/config/ms365");
     return data.data ?? data;
   },
 };

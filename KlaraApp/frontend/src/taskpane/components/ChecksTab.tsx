@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { qcApi } from '../api/qc';
 import { searchAndSelect, highlightRange, clearHighlights } from '../word-context';
 import { documentsApi } from '../api/documents';
@@ -17,12 +18,22 @@ interface GroupedItems {
   items: ChecklistItem[];
 }
 
-export function ChecksTab({ findings = [], docId, onRefresh }: { findings?: QCFinding[], docId?: string | null, onRefresh?: () => void }) {
+interface ChecksTabProps {
+  findings: QCFinding[];
+  docId: string | null;
+}
+
+export function ChecksTab({ findings = [], docId }: ChecksTabProps) {
+  const queryClient = useQueryClient();
   const [items, setItems] = useState<GroupedItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [summary, setSummary] = useState({ pass: 0, fail: 0, warn: 0, pending: 0 });
+
+  const onRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['findings', docId] });
+  }, [queryClient, docId]);
 
   const loadChecks = useCallback(async () => {
     setLoading(true);

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Klara Debug Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        h1 { color: #4ec9b0; }
+        .section { background: #252526; padding: 15px; margin: 10px 0; border-left: 3px solid #007acc; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; margin: 5px; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        pre { background: #1e1e1e; padding: 10px; overflow-x: auto; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 3px; }
+        .test-result.pass { background: #2d4a2d; }
+        .test-result.fail { background: #4a2d2d; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Klara Workflows Button Debug Console</h1>
+
+    <div class="section">
+        <h3>Step 1: Check Backend Connectivity</h3>
+        <button onclick="testBackendConnectivity()">Test Backend Connection</button>
+        <div id="backend-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>Step 2: Check Authentication</h3>
+        <button onclick="testAuth()">Test Authentication</button>
+        <div id="auth-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>Step 3: Check Document Loading</h3>
+        <button onclick="testDocuments()">Test Document Loading</button>
+        <div id="documents-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>Step 4: Test AI Job Creation</h3>
+        <button onclick="testAIJob()">Test AI Job Creation</button>
+        <div id="aijob-result"></div>
+    </div>
+
+    <div class="section">
+        <h3>Step 5: Check Complete Workflow</h3>
+        <button onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+        <div id="diagnostic-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        let authToken = null;
+
+        async function testBackendConnectivity() {
+            const result = document.getElementById('backend-result');
+            result.innerHTML = '<div class="info">Testing backend connection...</div>';
+
+            try {
+                const response = await axios.get(`${API_BASE}/health/live`);
+                result.innerHTML = `<div class="test-result pass"><span class="success">✅ Backend is running!</span><pre>${JSON.stringify(response.data, null, 2)}</pre></div>`;
+                return true;
+            } catch (error) {
+                result.innerHTML = `<div class="test-result fail"><span class="error">❌ Backend connection failed!</span><pre>${error.message}</pre></div>`;
+                return false;
+            }
+        }
+
+        async function testAuth() {
+            const result = document.getElementById('auth-result');
+            result.innerHTML = '<div class="info">Testing authentication...</div>';
+
+            try {
+                // Try to get token from localStorage
+                const token = localStorage.getItem('klara-access');
+                if (!token) {
+                    result.innerHTML = `<div class="test-result fail"><span class="error">❌ No auth token found!</span><div class="warning">You need to log in first.</div></div>`;
+                    return false;
+                }
+
+                authToken = token;
+                const response = await axios.get(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                result.innerHTML = `<div class="test-result pass"><span class="success">✅ Authenticated!</span><pre>${JSON.stringify(response.data, null, 2)}</pre></div>`;
+                return true;
+            } catch (error) {
+                result.innerHTML = `<div class="test-result fail"><span class="error">❌ Authentication failed!</span><pre>${error.response?.data || error.message}</pre></div>`;
+                return false;
+            }
+        }
+
+        async function testDocuments() {
+            const result = document.getElementById('documents-result');
+            result.innerHTML = '<div class="info">Testing document loading...</div>';
+
+            if (!authToken) {
+                const token = localStorage.getItem('klara-access');
+                if (!token) {
+                    result.innerHTML = `<div class="test-result fail"><span class="error">❌ Not authenticated!</span></div>`;
+                    return false;
+                }
+                authToken = token;
+            }
+
+            try {
+                const response = await axios.get(`${API_BASE}/documents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                const docs = response.data.data || response.data || [];
+                result.innerHTML = `<div class="test-result pass"><span class="success">✅ Found ${docs.length} document(s)!</span><pre>${JSON.stringify(docs, null, 2)}</pre></div>`;
+                return docs.length > 0;
+            } catch (error) {
+                result.innerHTML = `<div class="test-result fail"><span class="error">❌ Document loading failed!</span><pre>${error.response?.data || error.message}</pre></div>`;
+                return false;
+            }
+        }
+
+        async function testAIJob() {
+            const result = document.getElementById('aijob-result');
+            result.innerHTML = '<div class="info">Testing AI job creation...</div>';
+
+            if (!authToken) {
+                result.innerHTML = `<div class="test-result fail"><span class="error">❌ Not authenticated!</span></div>`;
+                return false;
+            }
+
+            try {
+                // First get a document
+                const docsResponse = await axios.get(`${API_BASE}/documents`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const docs = docsResponse.data.data || docsResponse.data || [];
+
+                if (docs.length === 0) {
+                    result.innerHTML = `<div class="test-result fail"><span class="error">❌ No documents available to test AI job!</span></div>`;
+                    return false;
+                }
+
+                const docId = docs[0].id;
+                result.innerHTML = `<div class="info">Creating AI job for document: ${docId}...</div>`;
+
+                const jobResponse = await axios.post(`${API_BASE}/ai-jobs`, {
+                    document_id: docId,
+                    job_type: 'compliance_audit'
+                }, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+
+                result.innerHTML = `<div class="test-result pass"><span class="success">✅ AI Job Created Successfully!</span><pre>${JSON.stringify(jobResponse.data, null, 2)}</pre></div>`;
+                return true;
+            } catch (error) {
+                result.innerHTML = `<div class="test-result fail"><span class="error">❌ AI Job creation failed!</span><pre>${error.response?.data || error.message}</pre></div>`;
+                return false;
+            }
+        }
+
+        async function runFullDiagnostic() {
+            const result = document.getElementById('diagnostic-result');
+            result.innerHTML = '<div class="info">Running full diagnostic...</div>';
+
+            const tests = [
+                { name: 'Backend Connectivity', test: testBackendConnectivity },
+                { name: 'Authentication', test: testAuth },
+                { name: 'Document Loading', test: testDocuments },
+                { name: 'AI Job Creation', test: testAIJob }
+            ];
+
+            let results = [];
+            for (const test of tests) {
+                try {
+                    const passed = await test.test();
+                    results.push({ name: test.name, passed });
+                } catch (error) {
+                    results.push({ name: test.name, passed: false, error: error.message });
+                }
+            }
+
+            const passedCount = results.filter(r => r.passed).length;
+            result.innerHTML = `
+                <div class="${passedCount === results.length ? 'success' : 'warning'}">
+                    <h4>Diagnostic Results: ${passedCount}/${results.length} tests passed</h4>
+                    <ul>
+                        ${results.map(r => `
+                            <li class="${r.passed ? 'success' : 'error'}">
+                                ${r.passed ? '✅' : '❌'} ${r.name}
+                                ${r.error ? `: ${r.error}` : ''}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Auto-run diagnostic on page load
+        window.onload = () => {
+            setTimeout(runFullDiagnostic, 500);
+        };
+    </script>
+</body>
+</html>

@@ -1,20 +1,22 @@
-export type FindingSeverity = 'critical' | 'major' | 'minor' | 'suggestion';
+export type FindingSeverity = "critical" | "major" | "minor" | "suggestion";
 
-export type FindingStatus = 'open' | 'accepted' | 'rejected' | 'deferred';
+export type FindingStatus = "open" | "accepted" | "rejected" | "deferred";
 
-export type FindingType = 'formatting' | 'spelling' | 'consistency' | 'compliance' | 'style' | 'metadata';
+export type FindingType =
+  "formatting" | "spelling" | "consistency" | "compliance" | "style" | "metadata";
 
-export type AIJobStatus = 'queued' | 'running' | 'analysing' | 'completed' | 'failed' | 'cancelled';
+export type AIJobStatus = "queued" | "running" | "analysing" | "completed" | "failed" | "cancelled";
 
-export type AIJobType = 'compliance_audit' | 'formatting_check' | 'style_validation' | 'proofreading' | 'pdf_comparison';
+export type AIJobType =
+  "compliance_audit" | "formatting_check" | "style_validation" | "proofreading" | "pdf_comparison";
 
 export type UserRole =
-  | 'intake_coordinator'
-  | 'document_specialist'
-  | 'qc_operator'
-  | 'proofreader'
-  | 'manager'
-  | 'admin';
+  | "intake_coordinator"
+  | "document_specialist"
+  | "qc_operator"
+  | "proofreader"
+  | "manager"
+  | "admin";
 
 export interface AuthUser {
   id: string;
@@ -53,7 +55,8 @@ export interface Finding {
 }
 
 export interface FormattingOperation {
-  type: 'keep_with_next' | 'page_break_before' | 'widow_orphan_control' | 'line_spacing' | 'alignment';
+  type:
+    "keep_with_next" | "page_break_before" | "widow_orphan_control" | "line_spacing" | "alignment";
   value: boolean | number | string;
   description?: string;
 }
@@ -103,7 +106,7 @@ export interface QCReview {
   document_title: string;
   reviewer_id: string;
   reviewer_name: string;
-  status: 'in_progress' | 'completed' | 'rejected' | 'deferred';
+  status: "in_progress" | "completed" | "rejected" | "deferred";
   checklist_id: string;
   total_items: number;
   completed_items: number;
@@ -120,7 +123,7 @@ export interface ChecklistItem {
   description?: string;
   is_automated: boolean;
   ai_finding_type_mapping?: string | null;
-  result: 'pass' | 'fail' | 'warn' | 'pending' | 'na';
+  result: "pass" | "fail" | "warn" | "pending" | "na";
   details?: string;
   order: number;
 }
@@ -175,7 +178,7 @@ export interface LoginRequest {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: number;
 }

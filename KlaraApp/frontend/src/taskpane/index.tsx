@@ -1,8 +1,11 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import { TaskPane } from "./components/TaskPane";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./taskpane.css";
 import "./global-styles.css";
+
+const queryClient = new QueryClient();
 
 /* global Office */
 
@@ -12,7 +15,9 @@ const render = () => {
   const root = createRoot(container);
   root.render(
     <React.StrictMode>
-      <TaskPane />
+      <QueryClientProvider client={queryClient}>
+        <TaskPane />
+      </QueryClientProvider>
     </React.StrictMode>
   );
 };

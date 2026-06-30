@@ -1,4 +1,4 @@
-import { apiClient } from './client';
+import { apiClient } from "./client";
 
 export interface EnableTrackChangesRequest {
   enabled: boolean;
@@ -62,8 +62,7 @@ export const wordFeaturesApi = {
     apiClient.post(`/documents/${documentId}/word/track-changes/revisions/reject`, data),
 
   // --- Comments ---
-  getComments: (documentId: string) =>
-    apiClient.get(`/documents/${documentId}/word/comments`),
+  getComments: (documentId: string) => apiClient.get(`/documents/${documentId}/word/comments`),
 
   addComment: (documentId: string, data: AddCommentRequest) =>
     apiClient.post(`/documents/${documentId}/word/comments`, data),
