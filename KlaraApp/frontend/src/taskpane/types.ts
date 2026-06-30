@@ -157,7 +157,7 @@ export interface ResolveFindingRequest {
   status: FindingStatus;
   applied_text?: string;
   note?: string;
-  resolution_notes?: string;
+  resolution_notes?: string; // Backend will use this if note is not provided
   auto_resolved?: boolean;
   not_found_in_document?: boolean;
 }
