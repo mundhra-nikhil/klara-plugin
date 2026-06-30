@@ -60,19 +60,6 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
-  onlyoffice:
-    container_name: klara-onlyoffice-1
-    build:
-      context: ../../onlyoffice
-      dockerfile: Dockerfile
-    ports:
-      - "8080:80"
-    environment:
-      - JWT_ENABLED=false
-      - JWT_SECRET=doceditor_secret_key
-    depends_on:
-      - backend
-
 volumes:
   postgres_data:
   redis_data:

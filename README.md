@@ -15,8 +15,9 @@ This repository contains the Klara Word Add-in — an AI-powered document qualit
 klara-ai-implementation-plan/
 ├── .gitignore
 ├── README.md
-├── klara-addin-preview.png
-├── klara-addin-v2.png
+├── Documentation/
+│   ├── klara-addin-preview.png
+│   ├── klara-addin-v2.png
 ├── KlaraApp/                          # Main add-in application
 │   ├── .eslintrc.json                 # ESLint rules (Office Add-in plugin)
 │   ├── .hintrc                        # Hint web linting config
