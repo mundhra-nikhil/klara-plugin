@@ -1,9 +1,9 @@
 """Global application state, caches, and startup initialization."""
 
-import fakeredis.aioredis as redis
+import redis.asyncio as redis
 from src.configs.config import settings
 
-redis_client = redis.FakeRedis(decode_responses=True)
+redis_client = redis.from_url(settings.redis_url, decode_responses=True)
 
 
 async def get_redis():

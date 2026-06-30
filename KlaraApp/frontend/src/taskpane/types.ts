@@ -2,7 +2,7 @@ export type FindingSeverity = 'critical' | 'major' | 'minor' | 'suggestion';
 
 export type FindingStatus = 'open' | 'accepted' | 'rejected' | 'deferred';
 
-export type FindingType = 'format' | 'spacing' | 'numbering' | 'reference' | 'spelling' | 'citation' | 'compliance' | 'style';
+export type FindingType = 'formatting' | 'spelling' | 'consistency' | 'compliance' | 'style' | 'metadata';
 
 export type AIJobStatus = 'queued' | 'running' | 'analysing' | 'completed' | 'failed' | 'cancelled';
 

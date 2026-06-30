@@ -3,7 +3,9 @@
 
 Docmancer compresses documentation context so coding agents spend tokens on code, not on rereading raw docs. It ingests local files, fetches public docs, indexes everything locally with SQLite FTS5, and returns compact context packs with source attribution.
 
-Executable: `'C:\Users\Int202613\AppData\Local\Programs\Python\Python312\Scripts\docmancer.exe' --config 'C:\Users\Int202613\.docmancer\docmancer.yaml'`
+Executable: `& 'C:\Users\Int202613\AppData\Local\Programs\Python\Python312\Scripts\docmancer.exe' --config 'C:\Users\Int202613\.docmancer\docmancer.yaml'`
+
+**Important PowerShell Execution Requirement:** Because the executable path is provided as a quoted string, **you must use the PowerShell call operator (`&`)** to execute it (as shown above). If you omit the `&`, PowerShell will treat it as a string and fail with an error like `Unexpected token 'config'`.
 
 **All commands below use `docmancer` as shorthand for the full executable path above.**
 

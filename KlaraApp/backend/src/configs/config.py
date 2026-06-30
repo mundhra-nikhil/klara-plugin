@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     anthropic_model: str = "global.anthropic.claude-sonnet-4-6"
 
     # CORS
-    cors_origins: str = '["http://localhost:5173"]'
+    cors_origins: str = '["http://localhost:5173", "https://localhost:3000"]'
 
     # Feature Flags
     enable_word_online: bool = False

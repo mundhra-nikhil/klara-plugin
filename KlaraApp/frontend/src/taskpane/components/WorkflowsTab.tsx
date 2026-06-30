@@ -30,7 +30,7 @@ const JOB_TYPES = [
   },
 ];
 
-export function WorkflowsTab() {
+export function WorkflowsTab({ docId }: { docId: string | null }) {
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -78,8 +78,11 @@ export function WorkflowsTab() {
     setError('');
 
     try {
+      if (!docId) {
+        throw new Error('No document selected');
+      }
       const job = await aiJobsApi.triggerJob({
-        document_id: '11111111-1111-1111-1111-111111111111',
+        document_id: docId,
         job_type: (jobType as any) || 'formatting_check',
       });
       setActiveJob(job);

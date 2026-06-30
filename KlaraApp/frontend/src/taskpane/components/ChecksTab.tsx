@@ -83,7 +83,10 @@ export function ChecksTab({ findings = [], docId, onRefresh }: { findings?: QCFi
   }, []);
 
   const handleRunChecks = async () => {
-    if (!docId) return;
+    if (!docId) {
+      setError('No document selected');
+      return;
+    }
     setIsProcessing(true);
     setError('');
     try {

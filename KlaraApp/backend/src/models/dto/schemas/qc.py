@@ -21,6 +21,14 @@ class FindingResponse(BaseModel):
     resolved_by_user_id: Optional[UUID]
     resolved_at: Optional[datetime]
     created_at: datetime
+    # Additional fields for frontend compatibility
+    review_id: Optional[UUID] = None
+    paragraph_index: Optional[int] = None
+    anchor_text: Optional[str] = None
+    title: Optional[str] = None
+    rule_name: Optional[str] = None
+    original_text: Optional[str] = None
+    replacement_text: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

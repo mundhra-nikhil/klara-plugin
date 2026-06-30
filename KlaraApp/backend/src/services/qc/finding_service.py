@@ -17,7 +17,43 @@ async def get_findings_for_document(
     db: AsyncSession, document_id: uuid.UUID
 ) -> List[FindingResponse]:
     findings = await qc_finding_repo.find_by_document_id(db, document_id)
-    return [FindingResponse.model_validate(f) for f in findings]
+    result = []
+    for finding in findings:
+        # Extract location data for frontend compatibility
+        loc = {}
+        if isinstance(finding.location, dict):
+            loc = finding.location
+        elif finding.location:
+            try:
+                import json
+                loc = json.loads(finding.location) if isinstance(finding.location, str) else finding.location
+            except:
+                loc = {}
+
+        # Create response with additional fields
+        response_dict = {
+            "id": finding.id,
+            "document_id": finding.document_id,
+            "analysis_job_id": finding.analysis_job_id,
+            "finding_type": finding.finding_type,
+            "severity": finding.severity,
+            "location": finding.location,
+            "description": finding.description,
+            "suggested_fix": finding.suggested_fix,
+            "status": finding.status,
+            "resolved_by_user_id": finding.resolved_by_user_id,
+            "resolved_at": finding.resolved_at,
+            "created_at": finding.created_at,
+            # Additional fields from location
+            "paragraph_index": loc.get("paragraph") or loc.get("paragraph_index"),
+            "anchor_text": loc.get("anchor_text"),
+            "title": loc.get("title"),
+            "rule_name": loc.get("rule_name"),
+            "original_text": loc.get("original_text"),
+            "replacement_text": loc.get("replacement_text"),
+        }
+        result.append(FindingResponse(**response_dict))
+    return result
 
 
 async def resolve_finding(

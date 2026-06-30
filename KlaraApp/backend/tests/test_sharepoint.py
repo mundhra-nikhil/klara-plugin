@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from unittest.mock import patch, MagicMock
 from src.services.sharepoint_service import SharePointService
 
@@ -11,44 +11,45 @@ def mock_msal_client():
     with patch('src.services.sharepoint_service.msal.ConfidentialClientApplication') as mock:
         yield mock
 
-def test_sharepoint_service_mock_mode_when_unconfigured(mock_db):
-    # Setup db to return None for MS365 config
-    mock_db.query().filter().first.return_value = None
-    
-    service = SharePointService(db=mock_db)
-    
-    # Assert
-    assert service.tenant_id == 'mock-tenant'
-    assert service.client_id == 'mock-client'
-    assert service.is_mock_mode is True
+@pytest.mark.asyncio
+async def test_sharepoint_service_mock_mode_when_unconfigured(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = None
+    with patch('src.services.config.system_config_service.SystemConfigService.get_config', return_value=None):
+        service = SharePointService()
+        tenant_id, client_id, client_secret = await service._get_credentials(mock_db)
+        
+        # If .env is unconfigured (your-tenant-id), it returns empty
+        # Wait, get_credentials will fall back to .env settings. 
+        # Since it returns "", "", "" for unconfigured .env:
+        assert tenant_id == ""
+        assert client_id == ""
 
-def test_sharepoint_service_live_mode_when_configured(mock_db, mock_msal_client):
-    # Setup db to return valid MS365 config
+@pytest.mark.asyncio
+async def test_sharepoint_service_live_mode_when_configured(mock_db, mock_msal_client):
     mock_config = MagicMock()
-    mock_config.config_value = {
-        'tenant_id': 'real-tenant',
-        'client_id': 'real-client',
-        'client_secret': 'real-secret'
+    mock_config.value = {
+        'tenantId': 'real-tenant',
+        'clientId': 'real-client',
+        'clientSecret': 'real-secret'
     }
-    mock_db.query().filter().first.return_value = mock_config
-    
-    service = SharePointService(db=mock_db)
-    
-    # Assert
-    assert service.tenant_id == 'real-tenant'
-    assert service.client_id == 'real-client'
-    assert service.is_mock_mode is False
-    mock_msal_client.assert_called_once_with(
-        "real-client",
-        authority="https://login.microsoftonline.com/real-tenant",
-        client_credential="real-secret"
-    )
+    with patch('src.services.config.system_config_service.SystemConfigService.get_config', return_value=mock_config):
+        service = SharePointService()
+        tenant_id, client_id, client_secret = await service._get_credentials(mock_db)
+        
+        assert tenant_id == 'real-tenant'
+        assert client_id == 'real-client'
+        
+        # Test get_access_token
+        mock_msal_client.return_value.acquire_token_silent.return_value = None
+        mock_msal_client.return_value.acquire_token_for_client.return_value = {"access_token": "token"}
+        token = await service.get_access_token(mock_db)
+        assert token == "token"
 
 @pytest.mark.asyncio
 async def test_get_sites_returns_mock_data_in_mock_mode(mock_db):
-    mock_db.query().filter().first.return_value = None
-    service = SharePointService(db=mock_db)
-    
-    sites = await service.get_sites("test query")
-    assert len(sites) == 2
-    assert sites[0]["name"] == "Legal Department (Mock)"
+    with patch('src.services.config.system_config_service.SystemConfigService.get_config', return_value=None):
+        service = SharePointService()
+        files = await service.list_files(mock_db, "site_id")
+        assert len(files) == 3
+        assert files[0]["name"] == "MSA_Template_v2.docx"
+

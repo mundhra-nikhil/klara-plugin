@@ -7,7 +7,11 @@ description: Run OpenCode CLI for AI-powered code analysis, refactoring, and tro
 
 OpenCode is an AI-powered coding assistant CLI that can analyze code, refactor files, fix errors, and process terminal output.
 
-**Model note:** this workflow assumes OpenCode is running on a smaller/weaker model (e.g. Qwen 35B class), not a frontier model. Every section below is written around that constraint — narrow scope, explicit guardrails, and mandatory verification. Do not skip the verification steps even when output "looks fine"; weak models produce plausible-looking wrong answers more often than obviously broken ones.
+**Model note:** this workflow assumes OpenCode is running on a smaller/weaker model, not a frontier model. 
+- Use **qwen35b** for general tasks and faster results.
+- Use **qwen27b** for more specialized coding tasks and slower results.
+
+Every section below is written around that constraint — narrow scope, explicit guardrails, and mandatory verification. Do not skip the verification steps even when output "looks fine"; weak models produce plausible-looking wrong answers more often than obviously broken ones.
 
 ## Installation
 

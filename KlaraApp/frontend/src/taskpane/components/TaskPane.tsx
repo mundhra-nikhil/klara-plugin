@@ -165,10 +165,14 @@ export function TaskPane() {
       const { apiClient } = await import('../api/client');
       const docsRes = await apiClient.get('/documents');
       const docsList = docsRes.data.data || docsRes.data || [];
-      const id = docsList.length > 0 ? docsList[0].id : '11111111-1111-1111-1111-111111111111';
+      const id = docsList.length > 0 ? docsList[0].id : null;
       setDocId(id);
-      const data = await qcApi.getFindings(id);
-      setFindings(data);
+      if (id) {
+        const data = await qcApi.getFindings(id);
+        setFindings(data);
+      } else {
+        setFindings([]);
+      }
     } catch {
       setFindings([]);
     }
@@ -239,7 +243,7 @@ export function TaskPane() {
           <SuggestionsTab findings={findings} onRefresh={loadFindings} />
         )}
         {activeTab === 'checks' && <ChecksTab findings={findings} docId={docId} onRefresh={loadFindings} />}
-        {activeTab === 'workflows' && <WorkflowsTab />}
+        {activeTab === 'workflows' && <WorkflowsTab docId={docId} />}
       </div>
 
       <ChatInput messages={chatMessages} onSend={(msg) => setChatMessages((prev) => [...prev.slice(-49), msg])} />
