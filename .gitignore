@@ -5,3 +5,8 @@ dist/
 office-js-docs-pr/
 .vscode/
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
