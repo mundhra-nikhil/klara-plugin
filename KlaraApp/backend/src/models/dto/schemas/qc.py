@@ -29,6 +29,7 @@ class FindingResponse(BaseModel):
     rule_name: Optional[str] = None
     original_text: Optional[str] = None
     replacement_text: Optional[str] = None
+    formatting_fix: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 

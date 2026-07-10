@@ -939,6 +939,17 @@ export async function applyParagraphFormatting(
               }
               break;
 
+            case "font":
+              if (operation.fontName) {
+                paragraph.font.name = operation.fontName;
+              }
+              if (operation.fontSize) {
+                paragraph.font.size = operation.fontSize;
+              }
+              message = `Changed font to ${operation.fontName || 'new style'}`;
+              applied = true;
+              break;
+
             default:
               message = `Unknown formatting operation type: ${operation.type}`;
               applied = false;
@@ -1055,6 +1066,17 @@ export async function searchAndApplyFormatting(
                 } else {
                   message = `Invalid alignment value: ${operation.value}`;
                 }
+                break;
+
+              case "font":
+                if (operation.fontName) {
+                  paragraphAny.font.name = operation.fontName;
+                }
+                if (operation.fontSize) {
+                  paragraphAny.font.size = operation.fontSize;
+                }
+                message = `Changed font to ${operation.fontName || 'new style'} for paragraph containing "${searchText}"`;
+                applied = true;
                 break;
 
               default:

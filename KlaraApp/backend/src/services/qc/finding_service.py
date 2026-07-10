@@ -51,6 +51,7 @@ async def get_findings_for_document(
             "rule_name": loc.get("rule_name"),
             "original_text": loc.get("original_text"),
             "replacement_text": loc.get("replacement_text"),
+            "formatting_fix": loc.get("formatting_fix"),
         }
         result.append(FindingResponse(**response_dict))
     return result
@@ -156,5 +157,6 @@ async def resolve_finding(
         "rule_name": loc.get("rule_name"),
         "original_text": loc.get("original_text"),
         "replacement_text": loc.get("replacement_text"),
+        "formatting_fix": loc.get("formatting_fix"),
     }
     return FindingResponse(**response_dict)

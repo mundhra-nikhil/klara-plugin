@@ -92,12 +92,18 @@ You will receive paragraph-level metadata extracted from the .docx including:
       "original_text": "<exact text that should be changed, OR null>",
       "replacement_text": "<corrected text, OR null>",
       "suggested_fix": "<short imperative fix>",
+      "formatting_fix": {
+        "type": "font",
+        "fontName": "<Font Name>",
+        "fontSize": 12
+      },
       "confidence": 0.0-1.0
     }
   ]
 }
 Findings must be specific (cite the offending text) and non-generic.
 If a finding requires replacing or reorganizing a multi-line block (e.g. a TOC or a list), `original_text` MUST contain the ENTIRE multi-line block being replaced, not just the first line, so that the text replacement applies correctly.
+If a finding is purely a formatting error (like Rule 1 or 18 font inconsistencies), emit `original_text` and `replacement_text` as IDENTICAL strings, and include the `formatting_fix` object so the plugin can programmatically correct the font.
 """
 
 
@@ -481,6 +487,9 @@ def _finalize_finding(f: dict, page_map: list[int]) -> dict:
         location.setdefault("original_text", original)
     if replacement is not None:
         location.setdefault("replacement_text", replacement)
+    formatting_fix = f.get("formatting_fix")
+    if formatting_fix is not None:
+        location.setdefault("formatting_fix", formatting_fix)
     location.setdefault("result", poc_result(rule_id))
     # The class the review UI splits on — automatic only when a real text
     # substitution exists, otherwise visual (a flag the reviewer eyeballs).
