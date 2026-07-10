@@ -162,7 +162,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         const targetParagraph = result.actualParagraphIndex ?? finding.paragraph_index;
         if (targetParagraph !== undefined) {
           try {
-            await selectParagraph(targetParagraph, '#90ee90');
+            await selectParagraph(targetParagraph);
           } catch (e) {
             console.warn('Could not highlight the changed paragraph:', e);
           }
@@ -265,7 +265,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         const targetParagraph = result.paragraphIndex ?? finding.paragraph_index;
         if (targetParagraph !== undefined) {
           try {
-            await selectParagraph(targetParagraph, '#90ee90');
+            await selectParagraph(targetParagraph);
           } catch (e) {
             console.warn('Could not highlight the formatted paragraph:', e);
           }
@@ -374,7 +374,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         const targetParagraph = finding.paragraph_index;
         if (targetParagraph !== undefined) {
           try {
-            await selectParagraph(targetParagraph, '#ffffcc');
+            await selectParagraph(targetParagraph);
           } catch (e) {
             console.warn('Could not highlight the commented paragraph:', e);
           }
