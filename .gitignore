@@ -17,3 +17,6 @@ __pycache__/
 .backend.log
 .frontend.log
 .word.log
+
+# Uploads
+KlaraApp/frontend/uploads/
