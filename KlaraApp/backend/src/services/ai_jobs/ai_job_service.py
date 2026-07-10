@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -15,6 +16,8 @@ from src.models.enum.finding_status import FindingStatus
 from src.utils.audit_helpers import create_audit_log
 from src.models.dto.schemas.ai_jobs import CreateAIJobRequest, AIJobResponse
 from src.services.integrations.llm.azure_openai import run_ai_analysis
+from src.core.constants import AI_JOB_MAX_RETRIES
+from src.utils import doc_lock
 from src.core.logger import get_logger_with_context
 
 logger = get_logger_with_context()
@@ -94,6 +97,7 @@ You will receive paragraph-level metadata extracted from the .docx including:
   ]
 }
 Findings must be specific (cite the offending text) and non-generic.
+If a finding requires replacing or reorganizing a multi-line block (e.g. a TOC or a list), `original_text` MUST contain the ENTIRE multi-line block being replaced, not just the first line, so that the text replacement applies correctly.
 """
 
 
@@ -146,8 +150,7 @@ async def create_ai_job(
     )
 
     await db.commit()
-    import asyncio
-    asyncio.create_task(run_job_in_background(job.id))
+    _spawn_bg_task(job.id)
     logger.info("Exiting create_ai_job", function="create_ai_job", action="exit", job_id=str(job.id))
     return AIJobResponse.model_validate(job)
 
@@ -277,7 +280,7 @@ For the foregoing reasons, Defendant respectfully requests that the Court dismis
 """
 
 
-async def process_ai_job(db: AsyncSession, job_id: uuid.UUID) -> None:
+async def process_ai_job(db: AsyncSession, job_id: uuid.UUID) -> AIJobStatus:
     """Worker function to process an AI analysis job. Called by the task queue.
 
     Reimagined as **deterministic-first**: a pure-Python rule engine
@@ -289,9 +292,21 @@ async def process_ai_job(db: AsyncSession, job_id: uuid.UUID) -> None:
     the vision pass owns the rendered-layout rules (3, 9, 12, 13, 14). The job
     therefore produces complete, correct findings even with no LLM reachable."""
     job = await db.get(AIAnalysisJob, job_id)
-    if not job or job.status != AIJobStatus.PENDING:
-        return
+    if not job:
+        return AIJobStatus.FAILED
+    # Re-read in case a cancel raced in since the runner scheduled us; only
+    # PENDING (never run) and RETRYING (a prior attempt failed and was
+    # re-queued) are runnable. COMPLETED / FAILED (incl. cancelled) / a
+    # duplicate RUNNING task all abort here.
+    await db.refresh(job)
+    if job.status not in (AIJobStatus.PENDING, AIJobStatus.RETRYING):
+        logger.info(
+            "Job not runnable, skipping",
+            function="process_ai_job", job_id=str(job_id), status=job.status.value,
+        )
+        return job.status
 
+    job.error_message = None
     job.status = AIJobStatus.RUNNING
     job.started_at = datetime.now(timezone.utc)
     await db.flush()
@@ -410,12 +425,30 @@ async def process_ai_job(db: AsyncSession, job_id: uuid.UUID) -> None:
             ))
 
     except Exception as e:
-        logger.error(f"Error executing AI job {job_id}: {e}")
-        job.status = AIJobStatus.FAILED
-        job.error_message = str(e)
-        job.retry_count += 1
+        logger.error(f"Error executing AI job {job_id}: {e}", function="process_ai_job", job_id=str(job_id))
+        old_status = job.status
+        old_retry = job.retry_count or 0
+        new_retry = old_retry + 1
+        job.retry_count = new_retry
+        if new_retry <= AI_JOB_MAX_RETRIES:
+            job.status = AIJobStatus.RETRYING
+            job.error_message = f"Attempt {new_retry} failed: {e}"
+        else:
+            job.status = AIJobStatus.FAILED
+            job.error_message = str(e)
+        await create_audit_log(
+            db,
+            entity_type="ai_analysis_jobs",
+            entity_id=job.id,
+            action=AuditAction.STATUS_CHANGE,
+            actor_id=None,
+            actor_type=ActorType.AI_SYSTEM,
+            old_values={"status": old_status.value, "retry_count": old_retry},
+            new_values={"status": job.status.value, "error": job.error_message},
+        )
 
     await db.flush()
+    return job.status
 
 
 # Rules the optional LLM pass is allowed to contribute (Python can't judge these
@@ -682,7 +715,11 @@ async def _run_vision_pass(file_path: str, rules_meta: Optional[dict] = None) ->
             lines = lines[:-1]
         content = "\n".join(lines).strip()
 
-    parsed = json.loads(content)
+    try:
+        parsed = json.loads(content)
+    except json.JSONDecodeError as parse_err:
+        logger.warning(f"Vision pass returned invalid JSON: {parse_err}")
+        return [], set()
     findings: list[dict] = []
     evaluated: set[int] = set()
     meta_src = rules_meta or _RULE_META
@@ -876,14 +913,106 @@ def _synthesise_findings_from_precomputed(pre: dict, rules_meta: Optional[dict] 
     return out
 
 
-async def run_job_in_background(job_id: uuid.UUID):
-    import asyncio
-    await asyncio.sleep(0.1)
+# Strong references to background tasks so the runtime can't garbage-collect
+# them mid-run (a bare asyncio.create_task() result can be GC'd, killing the
+# job silently under memory pressure).
+_INFLIGHT_BG_TASKS: set[asyncio.Task] = set()
+
+
+def _spawn_bg_task(job_id: uuid.UUID, delay: float = 0.1) -> None:
+    """Schedule a background job attempt and keep a strong reference to it."""
+    task = asyncio.create_task(run_job_in_background(job_id, delay=delay))
+    _INFLIGHT_BG_TASKS.add(task)
+    task.add_done_callback(_INFLIGHT_BG_TASKS.discard)
+
+
+async def _job_document_id_if_runnable(job_id: uuid.UUID) -> uuid.UUID | None:
+    """Lightweight read: the document_id of a runnable (PENDING/RETRYING) job,
+    or None. Used to decide whether to acquire the doc lock at all."""
+    from src.repositories.db_setup import AsyncSessionLocal
+    from sqlalchemy import select
+    async with AsyncSessionLocal() as db:
+        row = (await db.execute(
+            select(AIAnalysisJob.document_id, AIAnalysisJob.status)
+            .where(AIAnalysisJob.id == job_id)
+        )).first()
+        if not row:
+            return None
+        document_id, status = row
+        return document_id if status in (AIJobStatus.PENDING, AIJobStatus.RETRYING) else None
+
+
+async def _set_status(job_id: uuid.UUID, *, status: AIJobStatus, reason: str) -> None:
+    """Set a job's status + error_message outside the main work session."""
     from src.repositories.db_setup import AsyncSessionLocal
     async with AsyncSessionLocal() as db:
-        try:
-            await process_ai_job(db, job_id)
+        job = await db.get(AIAnalysisJob, job_id)
+        if job:
+            job.status = status
+            job.error_message = reason
             await db.commit()
-        except Exception as e:
-            await db.rollback()
-            logger.error(f"Error processing job in background: {e}")
+
+
+async def _read_retry_count(job_id: uuid.UUID) -> int:
+    from src.repositories.db_setup import AsyncSessionLocal
+    async with AsyncSessionLocal() as db:
+        job = await db.get(AIAnalysisJob, job_id)
+        return job.retry_count if job else 0
+
+
+async def run_job_in_background(job_id: uuid.UUID, delay: float = 0.1) -> None:
+    """Run one attempt of an AI analysis job.
+
+    Acquires the per-document lock (a scheduling concern — lives here, not in
+    ``process_ai_job``), runs the work, commits, and re-schedules with backoff
+    if the work landed in RETRYING. Lock contention is NOT a work failure: a
+    lock timeout re-schedules without consuming a retry slot.
+
+    Known limitation: a job cancelled while RUNNING can still be overwritten to
+    COMPLETED by an in-flight attempt; cooperative cancellation is out of scope.
+    ``process_ai_job`` skips any job that is no longer runnable.
+    """
+    await asyncio.sleep(delay)
+
+    document_id = await _job_document_id_if_runnable(job_id)
+    if document_id is None:
+        return  # gone, or no longer runnable (completed/failed/cancelled)
+
+    lock = await doc_lock.acquire_doc_lock(document_id)
+    if lock is None:
+        # Document is busy — defer without bumping retry_count (not a work failure).
+        logger.info(
+            "Doc lock busy, deferring",
+            function="run_job_in_background", job_id=str(job_id),
+        )
+        await _set_status(job_id, status=AIJobStatus.RETRYING, reason="lock timeout")
+        _spawn_bg_task(job_id, delay=doc_lock.compute_backoff(1))
+        return
+
+    key, token = lock
+    final_status = AIJobStatus.FAILED
+    try:
+        from src.repositories.db_setup import AsyncSessionLocal
+        async with AsyncSessionLocal() as db:
+            try:
+                final_status = await process_ai_job(db, job_id)
+                await db.commit()
+            except Exception as e:
+                await db.rollback()
+                logger.error(
+                    f"Error processing job in background: {e}",
+                    function="run_job_in_background", job_id=str(job_id),
+                )
+                final_status = AIJobStatus.FAILED
+    finally:
+        await doc_lock.release_doc_lock(key, token)
+
+    if final_status == AIJobStatus.RETRYING:
+        retry_count = await _read_retry_count(job_id) or 1
+        backoff = doc_lock.compute_backoff(retry_count)
+        logger.info(
+            "Re-scheduling retry",
+            function="run_job_in_background", job_id=str(job_id),
+            attempt=retry_count, delay=round(backoff, 2),
+        )
+        _spawn_bg_task(job_id, delay=backoff)

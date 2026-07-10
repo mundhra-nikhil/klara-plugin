@@ -100,6 +100,12 @@ export async function clearHighlights(): Promise<void> {
   }
 }
 
+function isNormalizedMatch(str1: string, str2: string): boolean {
+  if (!str1 || !str2) return str1 === str2;
+  const normalize = (s: string) => s.replace(/[\r\n]+/g, '\n').replace(/\s+/g, ' ').trim();
+  return normalize(str1) === normalize(str2);
+}
+
 /**
  * Result type for text replacement operations
  */
@@ -192,7 +198,7 @@ export async function replaceTextInParagraph(
                 newRange.load("text");
                 await context.sync();
 
-                if (newRange.text === replacement) {
+                if (isNormalizedMatch(newRange.text, replacement)) {
                   applied = true;
                   console.log(
                     `✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${foundIndex}`
@@ -236,7 +242,7 @@ export async function replaceTextInParagraph(
               newRange.load("text");
               await context.sync();
 
-              if (newRange.text === replacement) {
+              if (isNormalizedMatch(newRange.text, replacement)) {
                 applied = true;
                 console.log(
                   `✅ Successfully replaced "${originalText}" with "${replacement}" in paragraph ${paragraphIndex}`
@@ -280,7 +286,7 @@ export async function replaceTextInParagraph(
             newRange.load("text");
             await context.sync();
 
-            if (newRange.text === replacement) {
+            if (isNormalizedMatch(newRange.text, replacement)) {
               applied = true;
               foundInDocument = true;
               console.log(
@@ -415,7 +421,7 @@ export async function replaceText(
           newRange.load("text");
           await context.sync();
 
-          if (newRange.text === replacement) {
+          if (isNormalizedMatch(newRange.text, replacement)) {
             applied = true;
             foundInDocument = true;
             console.log(
