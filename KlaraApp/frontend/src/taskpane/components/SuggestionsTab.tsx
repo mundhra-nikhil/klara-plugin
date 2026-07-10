@@ -12,7 +12,7 @@ const SEVERITY_COLORS: Record<string, string> = {
   suggestion: 'var(--muted)',
 };
 
-const isActionableFinding = (f: QCFinding): boolean => {
+const isActionableFinding = (_f: QCFinding): boolean => {
   // All findings can be "Accepted" by the user to mark them as resolved,
   // even if they require manual formatting fixes or have no automated text replacement.
   return true;
