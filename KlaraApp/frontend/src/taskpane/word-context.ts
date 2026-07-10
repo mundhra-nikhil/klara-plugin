@@ -122,6 +122,19 @@ export async function replaceTextInParagraph(
   replacement: string,
   paragraphIndex: number
 ): Promise<TextReplacementResult> {
+  // Strip common automatic list/bullet prefixes if they exist on both strings.
+  // Word's API hides automatic bullets from paragraph.text, but the AI often includes them.
+  // If we don't strip them, the search fails, or we end up duplicating the bullet in the document.
+  const prefixMatch = text.match(/^(\s*(\d+[.)\]]|[a-zA-Z]+[.)\]]|\([a-zA-Z0-9]+\)|[-•*])\s+)+/);
+  if (prefixMatch) {
+    const prefix = prefixMatch[0];
+    if (replacement.startsWith(prefix)) {
+      text = text.substring(prefix.length);
+      replacement = replacement.substring(prefix.length);
+      console.log(`ℹ️ Stripped common list prefix "${prefix}" from search and replacement text`);
+    }
+  }
+
   let applied = false;
   let foundInDocument = false;
   let actualParagraphIndex: number | undefined = undefined;
