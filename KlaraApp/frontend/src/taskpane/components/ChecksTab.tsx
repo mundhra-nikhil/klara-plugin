@@ -84,13 +84,8 @@ export function ChecksTab({ findings = [], docId }: ChecksTabProps) {
 
   const handleNavigate = useCallback(async (item: ChecklistItem) => {
     if (item.result === 'pending') return;
-    await clearHighlights();
     const text = item.title;
-    const range = await searchAndSelect(text, 0);
-    if (range) {
-      const color = RESULT_COLORS[item.result] || 'yellow';
-      await highlightRange(range, color);
-    }
+    await searchAndSelect(text, 0);
   }, []);
 
   const handleRunChecks = async () => {

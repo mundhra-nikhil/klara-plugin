@@ -52,25 +52,10 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
   const actionableFindings = openFindings.filter(isActionableFinding);
 
   const handleNavigate = useCallback(async (finding: QCFinding) => {
-    await clearHighlights();
-
-    const color = acceptedIds.has(finding.id)
-      ? '#90ee90'
-      : rejectedIds.has(finding.id)
-      ? '#d3d3d3'
-      : commentedIds.has(finding.id)
-      ? '#e6f3ff'
-      : finding.severity === 'critical'
-      ? '#ffcccc'
-      : finding.severity === 'major'
-      ? '#fff3cd'
-      : '#ffffcc';
-
     const text = finding.original_text || finding.title;
     if (text) {
       const range = await searchAndSelect(text, 0);
       if (range) {
-        await highlightRange(range, color);
         return;
       }
     }
@@ -78,7 +63,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     // Fallback: If text search failed (e.g. truncated anchor text) or text is empty,
     // navigate directly to the paragraph index if it exists.
     if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-      await selectParagraph(finding.paragraph_index, color);
+      await selectParagraph(finding.paragraph_index);
     }
   }, [acceptedIds, rejectedIds]);
 
