@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { qcApi } from '../api/qc';
-import { searchAndSelect, highlightRange, clearHighlights } from '../word-context';
+import { searchAndSelect, highlightRange, clearHighlights } from '../word';
 import { documentsApi } from '../api/documents';
 import { Button } from '@fluentui/react-components';
 import type { ChecklistItem, QCFinding } from '../types';

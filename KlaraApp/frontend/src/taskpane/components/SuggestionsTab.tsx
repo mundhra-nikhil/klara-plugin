@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import type { QCFinding } from '../types';
-import type { TextReplacementResult, FormattingResult } from '../word-context';
+import type { TextReplacementResult, FormattingResult } from '../word';
 import { useQueryClient } from '@tanstack/react-query';
 import { qcApi } from '../api/qc';
-import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting, createSimulatedTrackedChange, createSimulatedTrackedChangeInParagraph, acceptSimulatedTrackedChange, rejectSimulatedTrackedChange, undoSimulatedTrackedChange, undoDirectReplacement } from '../word-context';
+import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting, applyGlobalFormatting, createSimulatedTrackedChange, createSimulatedTrackedChangeInParagraph, acceptSimulatedTrackedChange, rejectSimulatedTrackedChange, undoSimulatedTrackedChange, undoDirectReplacement } from '../word';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'var(--danger)',
@@ -35,6 +35,37 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [commentedIds, setCommentedIds] = useState<Set<string>>(new Set());
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+
+  const getReplacement = useCallback((f: QCFinding) => {
+    return editDraft[f.id] ?? f.replacement_text ?? f.suggested_fix ?? '';
+  }, [editDraft]);
+
+  const effectiveFinding = useCallback((f: QCFinding): QCFinding => ({
+    ...f,
+    replacement_text: getReplacement(f) || f.replacement_text,
+  }), [getReplacement]);
+
+  const startEdit = useCallback((f: QCFinding) => {
+    setEditDraft((prev) => ({ ...prev, [f.id]: getReplacement(f) }));
+    setEditingId(f.id);
+  }, [getReplacement]);
+
+  const cancelEdit = useCallback(() => setEditingId(null), []);
+
+  const saveEdit = useCallback(() => {
+    setEditingId(null);
+  }, []);
+
+  const clearEdit = useCallback((id: string) => {
+    setEditDraft((prev) => {
+      const n = { ...prev };
+      delete n[id];
+      return n;
+    });
+  }, []);
+
   const openFindings = findings.filter(
     (f) => f.status.toLowerCase() === 'open' && !acceptedIds.has(f.id) && !rejectedIds.has(f.id) && !commentedIds.has(f.id)
   );
@@ -46,12 +77,29 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
   const actionableFindings = openFindings.filter(isActionableFinding);
 
   const handleNavigate = useCallback(async (finding: QCFinding) => {
-    const text = finding.original_text || finding.title;
+    const text = finding.original_text || finding.anchor_text;
     if (text) {
-      const range = await searchAndSelect(text, 0);
-      if (range) {
+      const result = await searchAndSelect(text, 0);
+      if (result && result.range) {
+        if (result.error) {
+          setError(`Word API blocked precise selection (${result.error}). Highlighted containing paragraphs instead.`);
+          setTimeout(() => setError(''), 5000); // Clear after 5 seconds
+        }
         return;
+      } else if (result && result.error) {
+        setError(`Word API blocked selection: ${result.error}`);
+        setTimeout(() => setError(''), 5000);
+        
+        // If we caught an error but couldn't even safely select the paragraphs,
+        // we should still return so we don't fall back to the single-line highlight below.
+        // Actually, if we return here, nothing gets highlighted if safe selection failed.
+        // But if we don't return, it selects just the first line.
+        // Let's at least let it select the first line but keep the error visible.
       }
+    }
+
+    if (finding.title.toLowerCase().includes("footnote") || finding.location?.toLowerCase().includes("footnote")) {
+       return; // Don't mistakenly navigate to a random body paragraph
     }
 
     // Fallback: If text search failed (e.g. truncated anchor text) or text is empty,
@@ -89,11 +137,12 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
         
         setError('');
+        clearEdit(finding.id);
         onRefresh();
         return;
       }
 
-      if (!text || !replacement || text === replacement) {
+      if (!text || replacement === undefined || replacement === null || text === replacement) {
         // If there's no text replacement to do (either missing text or identical),
         // just mark it as accepted in the backend without modifying the document.
         console.log(`Accepting finding ${finding.id} without text modification`);
@@ -107,6 +156,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
         
         setError('');
+        clearEdit(finding.id);
         onRefresh();
         return;
       }
@@ -152,15 +202,18 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
         // Show success message temporarily
         setError('');
+        clearEdit(finding.id);
         onRefresh();
 
-        // Scroll to show the change in the document
+        // Navigate to show the change in the document
         const targetParagraph = result.actualParagraphIndex ?? finding.paragraph_index;
-        if (targetParagraph !== undefined) {
+        const isRestrictedLocation = (finding.title + " " + (finding.description || "") + " " + (finding.location || "")).toLowerCase().match(/footnote|footer|header/);
+        
+        if (targetParagraph !== undefined && !isRestrictedLocation) {
           try {
             await selectParagraph(targetParagraph);
           } catch (e) {
-            console.warn('Could not highlight the changed paragraph:', e);
+            console.warn('Could not highlight the replaced paragraph:', e);
           }
         }
 
@@ -190,6 +243,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
           return next;
         });
 
+        clearEdit(finding.id);
         onRefresh();
 
       } else {
@@ -203,7 +257,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, clearEdit]);
 
   const handleAcceptFormatting = useCallback(async (finding: QCFinding) => {
     setLoading(true);
@@ -217,19 +271,25 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
       let result: FormattingResult;
 
-      // Use paragraph index if available, otherwise search for the text
-      if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-        result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix);
-      } else if (finding.original_text || finding.anchor_text) {
-        const searchText = finding.original_text || finding.anchor_text;
-        result = await searchAndApplyFormatting(searchText!, finding.formatting_fix);
+      const searchText = finding.original_text || finding.anchor_text;
+
+      const findingContextText = (finding.title + " " + (finding.description || "")).toLowerCase();
+      
+      if (findingContextText.includes("footnote")) {
+        // If the finding is specifically about footnotes, apply formatting globally to all footnotes.
+        // We do this first because searching for the anchor text might find the footnote reference 
+        // in the main document body, causing the formatting to be incorrectly applied to the body paragraph.
+        result = await applyGlobalFormatting(finding.formatting_fix, findingContextText);
+      } else if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
+        result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix, searchText);
+      } else if (searchText) {
+        result = await searchAndApplyFormatting(searchText, finding.formatting_fix);
       } else {
-        throw new Error('Cannot apply formatting: missing paragraph index and search text');
+        result = await applyGlobalFormatting(finding.formatting_fix, findingContextText);
       }
 
       console.log(`Formatting result:`, result);
 
-      // Handle the result
       if (result.success && result.applied) {
         // Formatting was successfully applied
         console.log(`✅ Formatting successfully applied, updating finding status in backend...`);
@@ -255,17 +315,48 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
         // Show success message temporarily
         setError('');
+        clearEdit(finding.id);
         onRefresh();
 
         // Scroll to show the change in the document
         const targetParagraph = result.paragraphIndex ?? finding.paragraph_index;
-        if (targetParagraph !== undefined) {
+        const isRestrictedLocation = (finding.title + " " + (finding.description || "") + " " + (finding.location || "")).toLowerCase().match(/footnote|footer|header/);
+        
+        if (targetParagraph !== undefined && !isRestrictedLocation) {
           try {
             await selectParagraph(targetParagraph);
           } catch (e) {
             console.warn('Could not highlight the formatted paragraph:', e);
           }
         }
+
+      } else if (result.success && result.foundInDocument === false) {
+        console.log(`ℹ️ Location not found for formatting fix, auto-resolving as stale suggestion`);
+
+        await qcApi.resolveFinding(finding.id, {
+          status: 'accepted',
+          resolution_notes: result.message,
+          auto_resolved: true,
+          not_found_in_document: true,
+        });
+
+        console.log(`Finding ${finding.id} auto-resolved (stale formatting suggestion)`);
+
+        setAcceptedIds((prev) => new Set(prev).add(finding.id));
+        setRejectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+        setCommentedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+
+        setError('');
+        clearEdit(finding.id);
+        onRefresh();
 
       } else {
         // Something went wrong
@@ -278,7 +369,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, clearEdit]);
 
   const handleReject = useCallback(async (finding: QCFinding) => {
     try {
@@ -300,11 +391,12 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         next.delete(finding.id);
         return next;
       });
+      clearEdit(finding.id);
       onRefresh();
     } catch (e: any) {
       setError(e.message || 'Failed to reject finding');
     }
-  }, [onRefresh]);
+  }, [onRefresh, clearEdit]);
 
   const handleComment = useCallback(async (finding: QCFinding) => {
     setLoading(true);
@@ -315,7 +407,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
       console.log(`Adding Klara comment for finding ${finding.id}: "${commentText}"`);
 
-      let result: { success: boolean; message: string };
+      let result: { success: boolean; message: string; foundInDocument?: boolean };
 
       if (finding.replacement_text && finding.original_text && finding.replacement_text !== finding.original_text) {
         if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
@@ -364,17 +456,47 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         });
 
         setError('');
+        clearEdit(finding.id);
         onRefresh();
 
         // Navigate to show the comment
         const targetParagraph = finding.paragraph_index;
-        if (targetParagraph !== undefined) {
+        const isRestrictedLocation = (finding.title + " " + (finding.description || "") + " " + (finding.location || "")).toLowerCase().match(/footnote|footer|header/);
+        
+        if (targetParagraph !== undefined && !isRestrictedLocation) {
           try {
             await selectParagraph(targetParagraph);
           } catch (e) {
             console.warn('Could not highlight the commented paragraph:', e);
           }
         }
+      } else if (result.success === false && result.foundInDocument === false) {
+        console.log(`ℹ️ Text not found for comment, auto-resolving as stale suggestion`);
+
+        await qcApi.resolveFinding(finding.id, {
+          status: 'accepted',
+          resolution_notes: result.message,
+          auto_resolved: true,
+          not_found_in_document: true,
+        });
+
+        console.log(`Finding ${finding.id} auto-resolved (stale comment suggestion)`);
+
+        setAcceptedIds((prev) => new Set(prev).add(finding.id));
+        setRejectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+        setCommentedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(finding.id);
+          return next;
+        });
+
+        setError('');
+        clearEdit(finding.id);
+        onRefresh();
       } else {
         throw new Error(result.message || 'Comment creation failed');
       }
@@ -385,7 +507,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [onRefresh]);
+  }, [onRefresh, clearEdit]);
 
   const handleUndo = useCallback(async (finding: QCFinding) => {
     setLoading(true);
@@ -409,6 +531,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
       setRejectedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
       setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
       
+      clearEdit(finding.id);
       onRefresh();
     } catch (e: any) {
       console.error(`Failed to undo finding ${finding.id}:`, e);
@@ -416,7 +539,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     } finally {
       setLoading(false);
     }
-  }, [acceptedIds, rejectedIds, commentedIds, onRefresh]);
+  }, [acceptedIds, rejectedIds, commentedIds, onRefresh, clearEdit]);
 
   const handleAcceptAll = useCallback(async () => {
     setLoading(true);
@@ -437,15 +560,21 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
           let result: FormattingResult;
 
+          const searchText = finding.original_text || finding.anchor_text;
+
+          const findingContextText = (finding.title + " " + (finding.description || "")).toLowerCase();
           if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
-            result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix);
-          } else if (finding.original_text || finding.anchor_text) {
-            const searchText = finding.original_text || finding.anchor_text;
-            result = await searchAndApplyFormatting(searchText!, finding.formatting_fix);
+            result = await applyParagraphFormatting(finding.paragraph_index, finding.formatting_fix, searchText);
+            if (result.success && result.foundInDocument === false && findingContextText.includes("footnote")) {
+              result = await applyGlobalFormatting(finding.formatting_fix, findingContextText);
+            }
+          } else if (searchText) {
+            result = await searchAndApplyFormatting(searchText, finding.formatting_fix);
+            if (result.success && result.foundInDocument === false && findingContextText.includes("footnote")) {
+              result = await applyGlobalFormatting(finding.formatting_fix, findingContextText);
+            }
           } else {
-            console.warn(`⚠️ Cannot apply formatting ${finding.id}: missing location info`);
-            failedIds.push(finding.id);
-            continue;
+            result = await applyGlobalFormatting(finding.formatting_fix, findingContextText);
           }
 
           if (result.success && result.applied) {
@@ -461,6 +590,21 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
             });
             formattingAppliedIds.push(finding.id);
             console.log(`✅ Successfully applied formatting for finding ${finding.id}`);
+          } else if (result.success && result.foundInDocument === false) {
+            await qcApi.resolveFinding(finding.id, {
+              status: 'accepted',
+              resolution_notes: result.message,
+              auto_resolved: true,
+              not_found_in_document: true,
+            });
+            setAcceptedIds((prev) => new Set(prev).add(finding.id));
+            setCommentedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(finding.id);
+              return next;
+            });
+            autoResolvedIds.push(finding.id);
+            console.log(`ℹ️ Auto-resolved formatting finding ${finding.id} (not found in document)`);
           } else {
             failedIds.push(finding.id);
             console.warn(`⚠️ Failed to apply formatting ${finding.id}: ${result.message}`);
@@ -472,9 +616,19 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         const text = finding.original_text!;
         const replacement = finding.replacement_text!;
 
-        if (!text || !replacement) {
-          console.warn(`⚠️ Skipping finding ${finding.id}: missing text or replacement`);
-          failedIds.push(finding.id);
+        if (!text || replacement === undefined || replacement === null || text === replacement) {
+          console.log(`Accepting finding ${finding.id} without text modification`);
+          await qcApi.resolveFinding(finding.id, {
+            status: 'accepted',
+            applied_text: replacement || '',
+          });
+          setAcceptedIds((prev) => new Set(prev).add(finding.id));
+          setCommentedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(finding.id);
+            return next;
+          });
+          appliedIds.push(finding.id);
           continue;
         }
 
@@ -600,39 +754,59 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
         </div>
       )}
 
-      {openFindings.map((finding) => (
-        <SuggestionCard 
-          key={finding.id} 
-          finding={finding} 
-          isResolved={false}
-          onNavigate={() => handleNavigate(finding)}
-          onAccept={() => finding.formatting_fix ? handleAcceptFormatting(finding) : handleAccept(finding)}
-          onReject={() => handleReject(finding)}
-          onComment={() => handleComment(finding)}
-          onUndo={() => handleUndo(finding)}
-          loading={loading}
-        />
-      ))}
+      {openFindings.map((finding) => {
+        const ef = effectiveFinding(finding);
+        return (
+          <SuggestionCard 
+            key={finding.id} 
+            finding={finding} 
+            isResolved={false}
+            onNavigate={() => handleNavigate(finding)}
+            onAccept={() => ef.formatting_fix ? handleAcceptFormatting(ef) : handleAccept(ef)}
+            onReject={() => handleReject(ef)}
+            onComment={() => handleComment(ef)}
+            onUndo={() => handleUndo(ef)}
+            loading={loading}
+            isEditing={editingId === finding.id}
+            editValue={getReplacement(finding)}
+            onEditStart={() => startEdit(finding)}
+            onEditChange={(value: string) => setEditDraft(prev => ({ ...prev, [finding.id]: value }))}
+            onEditSave={() => saveEdit()}
+            onEditCancel={cancelEdit}
+            replacementText={getReplacement(finding)}
+          />
+        );
+      })}
 
       {resolvedFindings.length > 0 && (
         <div style={{ marginTop: '24px' }}>
           <div style={{ padding: '8px 14px', fontSize: 12, fontWeight: 'bold', color: 'var(--muted)', textTransform: 'uppercase' }}>
             Resolved Suggestions ({resolvedFindings.length})
           </div>
-          {resolvedFindings.map((finding) => (
-            <SuggestionCard 
-              key={finding.id} 
-              finding={finding} 
-              isResolved={true}
-              isCommented={commentedIds.has(finding.id)}
-              onNavigate={() => handleNavigate(finding)}
-              onAccept={() => finding.formatting_fix ? handleAcceptFormatting(finding) : handleAccept(finding)}
-              onReject={() => handleReject(finding)}
-              onComment={() => handleComment(finding)}
-              onUndo={() => handleUndo(finding)}
-              loading={loading}
-            />
-          ))}
+          {resolvedFindings.map((finding) => {
+            const ef = effectiveFinding(finding);
+            return (
+              <SuggestionCard 
+                key={finding.id} 
+                finding={finding} 
+                isResolved={true}
+                isCommented={commentedIds.has(finding.id)}
+                onNavigate={() => handleNavigate(finding)}
+                onAccept={() => ef.formatting_fix ? handleAcceptFormatting(ef) : handleAccept(ef)}
+                onReject={() => handleReject(ef)}
+                onComment={() => handleComment(ef)}
+                onUndo={() => handleUndo(ef)}
+                loading={loading}
+                isEditing={false}
+                editValue={getReplacement(finding)}
+                onEditStart={() => startEdit(finding)}
+                onEditChange={(value: string) => setEditDraft(prev => ({ ...prev, [finding.id]: value }))}
+                onEditSave={() => saveEdit()}
+                onEditCancel={cancelEdit}
+                replacementText={getReplacement(finding)}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -649,13 +823,22 @@ function SuggestionCard({
   onReject, 
   onComment, 
   onUndo, 
-  loading 
+  loading,
+  isEditing,
+  editValue,
+  onEditStart,
+  onEditChange,
+  onEditSave,
+  onEditCancel,
+  replacementText
 }: any) {
+  const isRestrictedLocation = (finding.title + " " + (finding.description || "") + " " + (finding.location || "")).toLowerCase().match(/footnote|footer|header/);
+  
   return (
     <div
       className={`klara-card ${isResolved && !isCommented ? 'klara-card-resolved' : ''}`}
       style={{ cursor: 'pointer', opacity: isResolved && !isCommented ? 0.7 : 1 }}
-      onClick={onNavigate}
+      onClick={isEditing ? undefined : onNavigate}
     >
       <div className="klara-card-label">
         {finding.rule_name || finding.type} · {finding.severity}
@@ -669,21 +852,52 @@ function SuggestionCard({
       {finding.description && (
         <div className="klara-card-desc">{finding.description}</div>
       )}
-      {(finding.original_text || finding.replacement_text) && (
+      {(finding.original_text || replacementText) && (
         <div className="klara-diff">
           {finding.original_text && (
             <div className="klara-diff-del">− {finding.original_text}</div>
           )}
-          {finding.replacement_text && (
-            <div className="klara-diff-add">+ {finding.replacement_text}</div>
-          )}
-          {finding.suggested_fix && !finding.replacement_text && (
-            <div className="klara-diff-add">+ {finding.suggested_fix}</div>
+          {isEditing ? (
+            <div style={{ marginTop: 4 }}>
+              <textarea
+                className="klara-edit-textarea"
+                value={editValue}
+                onChange={(e) => onEditChange(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                autoFocus
+                onFocus={(e) => {
+                  const val = e.target.value;
+                  e.target.value = '';
+                  e.target.value = val;
+                }}
+              />
+            </div>
+          ) : (
+            replacementText && (
+              <div className="klara-diff-add">+ {replacementText}</div>
+            )
           )}
         </div>
       )}
       <div className="klara-btn-group">
-        {isResolved ? (
+        {isEditing ? (
+          <>
+            <button
+              className="klara-btn klara-btn-ghost klara-btn-sm"
+              onClick={(e) => { e.stopPropagation(); onEditCancel(); }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              className="klara-btn klara-btn-primary klara-btn-sm"
+              onClick={(e) => { e.stopPropagation(); onEditSave(); }}
+              disabled={loading}
+            >
+              Save
+            </button>
+          </>
+        ) : isResolved ? (
           <>
             <button
               className="klara-btn klara-btn-ghost klara-btn-sm"
@@ -713,16 +927,27 @@ function SuggestionCard({
           </>
         ) : (
           <>
+            {!!replacementText && (
+              <button
+                className="klara-btn klara-btn-ghost klara-btn-sm"
+                onClick={(e) => { e.stopPropagation(); onEditStart(); }}
+                disabled={loading}
+              >
+                Edit
+              </button>
+            )}
             <button
               className="klara-btn klara-btn-ghost klara-btn-sm"
               onClick={(e) => { e.stopPropagation(); onReject(); }}
+              disabled={loading}
             >
               Reject
             </button>
             <button
               className="klara-btn klara-btn-ghost klara-btn-sm"
               onClick={(e) => { e.stopPropagation(); onComment(); }}
-              disabled={loading}
+              disabled={loading || !!isRestrictedLocation}
+              title={isRestrictedLocation ? "Comments cannot be added in footnotes or headers/footers" : undefined}
             >
               Comment
             </button>

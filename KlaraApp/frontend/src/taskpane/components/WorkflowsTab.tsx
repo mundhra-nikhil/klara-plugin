@@ -127,7 +127,7 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
       }
 
       try {
-        const { getActiveDocumentData } = await import('../word-context');
+        const { getActiveDocumentData } = await import('../word');
         const docData = await getActiveDocumentData();
         const { documentsApi } = await import('../api/documents');
         currentDocId = await documentsApi.syncActiveDocument(docData);

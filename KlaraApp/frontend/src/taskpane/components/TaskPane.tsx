@@ -195,7 +195,7 @@ export function TaskPane() {
     setSyncError(null);
     try {
       console.log('Syncing active document...');
-      const { getActiveDocumentData } = await import('../word-context');
+      const { getActiveDocumentData } = await import('../word');
       const docData = await getActiveDocumentData();
 
       const { documentsApi } = await import('../api/documents');

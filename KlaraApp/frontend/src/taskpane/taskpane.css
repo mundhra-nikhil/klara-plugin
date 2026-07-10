@@ -194,6 +194,28 @@ html, body, #container {
   color: var(--success);
 }
 
+.klara-edit-textarea {
+  width: 100%;
+  min-height: 48px;
+  resize: vertical;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.klara-edit-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-bg, rgba(0,120,212,.15));
+}
+
 /* Buttons */
 .klara-btn {
   padding: 5px 12px;
