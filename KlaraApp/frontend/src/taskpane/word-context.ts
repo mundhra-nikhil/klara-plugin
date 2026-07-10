@@ -1308,3 +1308,88 @@ export async function undoDirectReplacement(
     return { success: false, message: e.message || "Unknown error" };
   }
 }
+
+export async function getActiveDocumentData(): Promise<{
+  title: string;
+  author: string;
+  url?: string;
+  blob?: Blob;
+}> {
+  let title = "Document.docx";
+  let author = "Unknown";
+  let url = Office.context.document.url;
+
+  try {
+    await Word.run(async (context) => {
+      const props = context.document.properties;
+      context.load(props, "title, author");
+      await context.sync();
+      if (props.title) title = props.title;
+      if ((props as any).author) author = (props as any).author;
+    });
+  } catch (e) {
+    // ignore
+  }
+
+  // NOTE: Even when the document is cloud-hosted (url is an https:// SharePoint/OneDrive link)
+  // we still extract the binary via getFileAsync, because the backend does not yet have a
+  // Graph-URL ingestion endpoint. Once that endpoint is built, we can return { title, author, url }
+  // here for the faster server-side pull path.
+
+  // Fallback to getFileAsync for local/unsaved docs
+  return new Promise((resolve, reject) => {
+    Office.context.document.getFileAsync(
+      Office.FileType.Compressed,
+      { sliceSize: 65536 },
+      (result) => {
+        if (result.status === Office.AsyncResultStatus.Succeeded) {
+          const file = result.value;
+          const sliceCount = file.sliceCount;
+          const slicesReceived: ArrayBuffer[] = [];
+          let slicesRead = 0;
+
+          const getSlice = (sliceIndex: number) => {
+            file.getSliceAsync(sliceIndex, (sliceResult) => {
+              if (sliceResult.status === Office.AsyncResultStatus.Succeeded) {
+                // Ensure the slice data is Uint8Array
+                const sliceData = sliceResult.value.data;
+                let typedArray: Uint8Array;
+                if (sliceData instanceof ArrayBuffer) {
+                  typedArray = new Uint8Array(sliceData);
+                } else if (sliceData instanceof Uint8Array) {
+                  typedArray = sliceData;
+                } else {
+                  typedArray = new Uint8Array(sliceData as any);
+                }
+                slicesReceived[sliceIndex] = typedArray.buffer as ArrayBuffer;
+                slicesRead++;
+
+                if (slicesRead === sliceCount) {
+                  file.closeAsync();
+                  const blob = new Blob(slicesReceived, {
+                    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                  });
+                  resolve({ title, author, blob });
+                } else {
+                  getSlice(sliceIndex + 1);
+                }
+              } else {
+                file.closeAsync();
+                reject(new Error(sliceResult.error.message));
+              }
+            });
+          };
+
+          if (sliceCount > 0) {
+            getSlice(0);
+          } else {
+            file.closeAsync();
+            resolve({ title, author, blob: new Blob() });
+          }
+        } else {
+          reject(new Error(result.error.message));
+        }
+      }
+    );
+  });
+}

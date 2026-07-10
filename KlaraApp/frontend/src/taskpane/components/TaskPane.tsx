@@ -121,6 +121,17 @@ function LoginOverlay({ onLogin }: { onLogin: (token: string, user: any) => void
   );
 }
 
+// Derives a short cache key for the currently open document using its URL
+// (or title as a fallback) so we can skip re-uploading on every login.
+function getDocCacheKey(): string {
+  try {
+    const docUrl = Office.context.document.url || '';
+    return `klara_doc_id:${docUrl || 'untitled'}`;
+  } catch {
+    return 'klara_doc_id:untitled';
+  }
+}
+
 export function TaskPane() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
@@ -128,6 +139,8 @@ export function TaskPane() {
   const [docId, setDocId] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const { data: findings = [] } = useFindings(docId);
 
@@ -157,21 +170,44 @@ export function TaskPane() {
 
   const handleLogout = useCallback(() => {
     clearTokens();
+    // Clear the document cache so next login re-syncs the file.
+    try { sessionStorage.removeItem(getDocCacheKey()); } catch { /* ignore */ }
     setToken(null);
     setUser(null);
+    setDocId(null);
+    setSyncError(null);
   }, []);
 
   const loadDocument = useCallback(async () => {
     if (!token) return;
+
+    // Check sessionStorage cache first — avoids re-uploading on every login
+    // while the same document is still open in this Word session.
+    const cacheKey = getDocCacheKey();
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      console.log('Using cached docId for this session:', cached);
+      setDocId(cached);
+      return;
+    }
+
+    setIsSyncing(true);
+    setSyncError(null);
     try {
-      const { apiClient } = await import('../api/client');
-      console.log('Loading documents...');
-      const docsRes = await apiClient.get('/documents');
-      const docsList = docsRes.data.data || docsRes.data || [];
-      const id = docsList.length > 0 ? docsList[0].id : null;
-      setDocId(id);
-    } catch (error) {
-      console.error('Failed to load documents:', error);
+      console.log('Syncing active document...');
+      const { getActiveDocumentData } = await import('../word-context');
+      const docData = await getActiveDocumentData();
+
+      const { documentsApi } = await import('../api/documents');
+      const newDocId = await documentsApi.syncActiveDocument(docData);
+
+      sessionStorage.setItem(cacheKey, newDocId);
+      setDocId(newDocId);
+    } catch (error: any) {
+      console.error('Failed to sync active document:', error);
+      setSyncError(error?.message || 'Failed to sync document with Klara.');
+    } finally {
+      setIsSyncing(false);
     }
   }, [token]);
 
@@ -181,7 +217,7 @@ export function TaskPane() {
     }
   }, [token, loadDocument]);
 
-  const openFindingsCount = findings.filter(f => f.status === 'open').length;
+  const openFindingsCount = findings.filter(f => f.status.toLowerCase() === 'open').length;
 
   if (isLoading) {
     return (
@@ -194,6 +230,31 @@ export function TaskPane() {
 
   if (!token) {
     return <LoginOverlay onLogin={handleLogin} />;
+  }
+
+  if (isSyncing) {
+    return (
+      <div className="klara-loading">
+        <div className="klara-loading-spinner" />
+        Syncing document...
+      </div>
+    );
+  }
+
+  if (syncError) {
+    return (
+      <div className="klara-loading" style={{ flexDirection: 'column', gap: 12 }}>
+        <div style={{ color: 'var(--danger, #e53e3e)', fontSize: 13, textAlign: 'center', padding: '0 16px' }}>
+          ⚠️ {syncError}
+        </div>
+        <button className="klara-login-btn" onClick={loadDocument}>
+          Retry
+        </button>
+        <button className="klara-sso-btn" onClick={handleLogout} style={{ marginTop: 0 }}>
+          Sign out
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -240,7 +301,15 @@ export function TaskPane() {
           <SuggestionsTab findings={findings} docId={docId} />
         )}
         {activeTab === 'checks' && <ChecksTab findings={findings} docId={docId} />}
-        {activeTab === 'workflows' && <WorkflowsTab docId={docId} />}
+        {activeTab === 'workflows' && (
+          <WorkflowsTab 
+            docId={docId} 
+            onDocSynced={(newId) => {
+              setDocId(newId);
+              try { sessionStorage.setItem(getDocCacheKey(), newId); } catch {}
+            }} 
+          />
+        )}
       </div>
 
       <ChatInput messages={chatMessages} onSend={(msg) => setChatMessages((prev) => [...prev.slice(-49), msg])} />

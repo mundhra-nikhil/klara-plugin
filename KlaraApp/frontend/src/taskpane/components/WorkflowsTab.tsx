@@ -31,9 +31,10 @@ const JOB_TYPES = [
   },
 ];
 
-export function WorkflowsTab({ docId }: { docId: string | null }) {
+export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onDocSynced?: (newId: string) => void }) {
   const queryClient = useQueryClient();
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
+  const [simulatedProgress, setSimulatedProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -47,6 +48,25 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current as number);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeJob) {
+      if (activeJob.status === 'running' || activeJob.status === 'analysing' || activeJob.status === 'queued') {
+        const timer = setInterval(() => {
+          setSimulatedProgress(p => {
+            if (p < 90) return p + Math.floor(Math.random() * 10) + 1;
+            return p;
+          });
+        }, 1500);
+        return () => clearInterval(timer);
+      } else if (activeJob.status === 'completed') {
+        setSimulatedProgress(100);
+      }
+    } else {
+      setSimulatedProgress(0);
+    }
+    return undefined;
+  }, [activeJob?.status]);
 
   const pollJob = useCallback(async (jobId: string) => {
     console.log(`Starting to poll job ${jobId}`);
@@ -87,15 +107,29 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
     setError('');
 
     try {
-      if (!docId) {
+      let currentDocId = docId;
+      if (!currentDocId) {
         throw new Error('No document selected. Please make sure a document is available.');
       }
-      console.log(`Triggering AI job: ${jobType} for document: ${docId}`);
+
+      try {
+        const { getActiveDocumentData } = await import('../word-context');
+        const docData = await getActiveDocumentData();
+        const { documentsApi } = await import('../api/documents');
+        currentDocId = await documentsApi.syncActiveDocument(docData);
+        if (onDocSynced) onDocSynced(currentDocId);
+      } catch (err: any) {
+        console.warn('Failed to re-sync document before job.', err);
+        throw new Error('Failed to extract document. Please ensure your document is saved and try again.');
+      }
+
+      console.log(`Triggering AI job: ${jobType} for document: ${currentDocId}`);
       const job = await aiJobsApi.triggerJob({
-        document_id: docId,
+        document_id: currentDocId,
         job_type: (jobType as any) || 'formatting_check',
       });
       console.log(`AI job created successfully: ${job.id}`);
+      setSimulatedProgress(0);
       setActiveJob(job);
       pollJob(job.id);
     } catch (e: any) {
@@ -151,7 +185,7 @@ export function WorkflowsTab({ docId }: { docId: string | null }) {
           <div className="klara-progress">
             <div
               className="klara-progress-bar"
-              style={{ width: `${activeJob.progress_pct || 0}%` }}
+              style={{ width: `${activeJob.progress_pct || simulatedProgress}%`, transition: 'width 0.5s ease' }}
             />
           </div>
           {activeJob.error_message && (

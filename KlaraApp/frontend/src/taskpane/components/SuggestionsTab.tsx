@@ -42,11 +42,11 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
   const [commentedIds, setCommentedIds] = useState<Set<string>>(new Set());
 
   const openFindings = findings.filter(
-    (f) => f.status === 'open' && !acceptedIds.has(f.id) && !rejectedIds.has(f.id) && !commentedIds.has(f.id)
+    (f) => f.status.toLowerCase() === 'open' && !acceptedIds.has(f.id) && !rejectedIds.has(f.id) && !commentedIds.has(f.id)
   );
 
   const resolvedFindings = findings.filter(
-    (f) => f.status !== 'open' || acceptedIds.has(f.id) || rejectedIds.has(f.id) || commentedIds.has(f.id)
+    (f) => f.status.toLowerCase() !== 'open' || acceptedIds.has(f.id) || rejectedIds.has(f.id) || commentedIds.has(f.id)
   );
 
   const actionableFindings = openFindings.filter(isActionableFinding);
