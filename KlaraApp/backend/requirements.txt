@@ -12,10 +12,6 @@ alembic==1.13.3
 # Redis
 redis[hiredis]==5.1.1
 
-# Task Queue
-celery==5.4.0
-kombu==5.3.7
-
 # Auth
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4

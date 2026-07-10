@@ -3,6 +3,7 @@ node_modules/
 dist/
 .playwright-mcp/
 office-js-docs-pr/
+graphify-out/
 .vscode/
 .env
 
