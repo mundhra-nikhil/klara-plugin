@@ -68,7 +68,7 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
     return undefined;
   }, [activeJob?.status]);
 
-  const pollJob = useCallback(async (jobId: string) => {
+  const pollJob = useCallback(async (jobId: string, currentDocId: string) => {
     console.log(`Starting to poll job ${jobId}`);
     let failures = 0;
     const poll = async () => {
@@ -82,7 +82,7 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
           console.log(`Job ${jobId} finished with status: ${job.status}`);
           if (job.status === 'completed') {
-            queryClient.invalidateQueries({ queryKey: ['findings', docId] });
+            queryClient.invalidateQueries({ queryKey: ['findings', currentDocId] });
           }
           return;
         }
@@ -131,7 +131,7 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
       console.log(`AI job created successfully: ${job.id}`);
       setSimulatedProgress(0);
       setActiveJob(job);
-      pollJob(job.id);
+      pollJob(job.id, currentDocId);
     } catch (e: any) {
       console.error('Failed to trigger AI job:', e);
       setError(e.message || 'Failed to trigger job');
