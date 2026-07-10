@@ -13,15 +13,9 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const isActionableFinding = (f: QCFinding): boolean => {
-  // Text replacement findings are actionable
-  if (f.original_text && f.replacement_text && f.original_text !== f.replacement_text) {
-    return true;
-  }
-  // Formatting fix findings are actionable
-  if (f.formatting_fix) {
-    return true;
-  }
-  return false;
+  // All findings can be "Accepted" by the user to mark them as resolved,
+  // even if they require manual formatting fixes or have no automated text replacement.
+  return true;
 };
 
 interface SuggestionsTabProps {
@@ -74,21 +68,38 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
       const text = finding.original_text;
       const replacement = finding.replacement_text;
 
-      if (!text || !replacement) {
-        throw new Error('Cannot accept finding: missing original or replacement text');
-      }
-
       // Handle accepting a simulated tracked change
       if (commentedIds.has(finding.id)) {
         console.log(`Accepting simulated tracked change ${finding.id}`);
-        const acceptResult = await acceptSimulatedTrackedChange(finding.id, replacement);
-        if (!acceptResult.success) {
-          throw new Error(acceptResult.message);
+        // If there is no replacement, we just mark it accepted (since the comment was purely informational)
+        if (text && replacement && text !== replacement) {
+          const acceptResult = await acceptSimulatedTrackedChange(finding.id, replacement);
+          if (!acceptResult.success) {
+            throw new Error(acceptResult.message);
+          }
         }
 
         await qcApi.resolveFinding(finding.id, {
           status: 'accepted',
-          applied_text: replacement,
+          applied_text: replacement || '',
+        });
+
+        setAcceptedIds((prev) => new Set(prev).add(finding.id));
+        setRejectedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+        setCommentedIds((prev) => { const next = new Set(prev); next.delete(finding.id); return next; });
+        
+        setError('');
+        onRefresh();
+        return;
+      }
+
+      if (!text || !replacement || text === replacement) {
+        // If there's no text replacement to do (either missing text or identical),
+        // just mark it as accepted in the backend without modifying the document.
+        console.log(`Accepting finding ${finding.id} without text modification`);
+        await qcApi.resolveFinding(finding.id, {
+          status: 'accepted',
+          applied_text: replacement || '',
         });
 
         setAcceptedIds((prev) => new Set(prev).add(finding.id));
@@ -306,7 +317,7 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
       let result: { success: boolean; message: string };
 
-      if (finding.replacement_text && finding.original_text) {
+      if (finding.replacement_text && finding.original_text && finding.replacement_text !== finding.original_text) {
         if (finding.paragraph_index !== undefined && finding.paragraph_index !== null) {
           result = await createSimulatedTrackedChangeInParagraph(finding.original_text, finding.replacement_text, commentText, finding.paragraph_index, finding.id);
         } else {

@@ -839,6 +839,15 @@ function generateSearchVariations(text: string): string[] {
     variations.push(whitespaceVariation);
   }
 
+  // Word TOCs often use a tab with dot leaders, which the AI might extract as literal dots.
+  // Replace 2 or more dots (or sequences of dots and spaces) with '^w' (any white space).
+  if (text.includes("..")) {
+    const dotVariation = text.replace(/[\s\.]*\.{2,}[\s\.]*/g, "^w");
+    if (dotVariation !== text) {
+      variations.push(dotVariation);
+    }
+  }
+
   return Array.from(new Set(variations));
 }
 
