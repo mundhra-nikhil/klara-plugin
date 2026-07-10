@@ -45,7 +45,8 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
     isMounted.current = true;
     return () => {
       isMounted.current = false;
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current as number);
+      // Do not clearTimeout for pollTimerRef here. 
+      // We want the job to keep polling in the background until completion so it can invalidate queries.
     };
   }, []);
 
@@ -72,13 +73,15 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
     console.log(`Starting to poll job ${jobId}`);
     let failures = 0;
     const poll = async () => {
-      if (!isMounted.current) return;
       try {
         const job = await aiJobsApi.getJobStatus(jobId);
-        if (!isMounted.current) return;
-        failures = 0;
-        console.log(`Job ${jobId} status: ${job.status}, progress: ${job.progress_pct || 0}%`);
-        setActiveJob(job);
+        
+        if (isMounted.current) {
+          failures = 0;
+          console.log(`Job ${jobId} status: ${job.status}, progress: ${job.progress_pct || 0}%`);
+          setActiveJob(job);
+        }
+
         if (job.status === 'completed' || job.status === 'failed' || job.status === 'cancelled') {
           console.log(`Job ${jobId} finished with status: ${job.status}`);
           if (job.status === 'completed') {
@@ -86,16 +89,27 @@ export function WorkflowsTab({ docId, onDocSynced }: { docId: string | null; onD
           }
           return;
         }
-        pollTimerRef.current = setTimeout(poll, 3000) as any;
+        
+        const nextTimer = setTimeout(poll, 3000);
+        if (isMounted.current) {
+          pollTimerRef.current = nextTimer as any;
+        }
       } catch (err) {
         console.error(`Failed to poll job ${jobId}:`, err);
         failures++;
-        if (failures >= 5) {
-          if (isMounted.current) setError('Failed to get job status after multiple retries.');
-          return;
-        }
+        
         if (isMounted.current) {
-          pollTimerRef.current = setTimeout(poll, 3000) as any;
+          if (failures >= 5) {
+            setError('Failed to get job status after multiple retries.');
+            return;
+          }
+        } else if (failures >= 5) {
+          return; // Stop background polling after multiple failures
+        }
+        
+        const nextTimer = setTimeout(poll, 3000);
+        if (isMounted.current) {
+          pollTimerRef.current = nextTimer as any;
         }
       }
     };
