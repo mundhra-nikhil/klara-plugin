@@ -813,6 +813,13 @@ function generateSearchVariations(text: string): string[] {
     variations.push(wildcardVersion);
   }
 
+  // Word separates TOC numbers and list items with tabs, which often get extracted as spaces.
+  // '^w' is Word's special character for 'any white space' (spaces, tabs, non-breaking spaces).
+  const whitespaceVariation = text.replace(/\s+/g, "^w");
+  if (whitespaceVariation !== text) {
+    variations.push(whitespaceVariation);
+  }
+
   return Array.from(new Set(variations));
 }
 
