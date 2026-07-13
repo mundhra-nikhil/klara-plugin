@@ -9,9 +9,10 @@ When working on the Klara Word Add-in frontend (specifically the Suggestions tab
 
 ## 1. Separation of Concerns (React vs. Office.js)
 *Note: The frontend code and its `node_modules` (including Office.js typings) are housed in the `KlaraApp\frontend\` directory.*
-- **`SuggestionsTab.tsx` (React):** Responsible *only* for handling user intent (clicks, edits), updating local React state, making network calls to the backend (`qcApi`), and orchestrating the flow.
-  - **NEVER** import `Word` directly or call `context.sync()` inside React components.
-- **`word-context.ts` (Office.js Layer):** The only place where Microsoft Office JS API calls are allowed. It encapsulates all `Word.run`, paragraph iterations, and text search loops, returning standardized results back to the React layer.
+- **`SuggestionsTab.tsx` (React):** Responsible *only* for rendering the UI and passing user intent to the custom hooks.
+- **`hooks/useFindingsActions.ts` (React State):** Contains the handlers (`handleAccept`, `handleReject`, etc.), handles optimistic state updates, and orchestrates calls to the backend (`qcApi`) and Office.js layer.
+  - **NEVER** import `Word` directly or call `context.sync()` inside React components or hooks.
+- **`word/` directory (Office.js Layer):** The only place where Microsoft Office JS API calls are allowed (e.g., `formatting.ts`, `replace.ts`, `tracking.ts`). It encapsulates all `Word.run`, paragraph iterations, and text search loops, returning standardized results back to the React layer.
 
 ## 2. Optimistic UI Updates (Anti-Ghosting)
 Klara's backend updates are slower than the UI interactions. If you rely solely on React Query's cache invalidation (`onRefresh()`), the suggestion cards will flicker back to an "open" state before disappearing.
@@ -26,7 +27,7 @@ Klara's backend updates are slower than the UI interactions. If you rely solely 
 
 ## 3. The Fallback Pattern (Paragraph Index vs. Global Search)
 Because Word documents can have duplicate text, surgical precision is preferred. However, text can shift.
-- **Rule:** All modification functions in `word-context.ts` must attempt to use `finding.paragraph_index` first.
+- **Rule:** All modification functions in the `word/` directory (like `replace.ts` and `formatting.ts`) must attempt to use `finding.paragraph_index` first.
 - **Fallback:** If `paragraph_index` is missing, or the exact text is no longer found at that index, the function must gracefully fall back to a global document search (e.g., `body.search(text)`).
 - **Search Implementation Rule:** NEVER use strict string matching (e.g., `paragraph.text.includes()`) to verify or find text. Word strips list numbers and transforms whitespace (like TOC dot-leaders). You **MUST** use the `searchWithVariations()` helper to leverage Word's native, formatting-resilient search API.
 - **Example Flow:** Try `replaceTextInParagraph` -> If fails/not found -> Try `replaceText`.
@@ -39,5 +40,5 @@ Klara doesn't just use standard Word comments for everything.
 
 ## 5. Editing Replacements (Effective Findings)
 When the user edits a suggestion card inline, the handlers (`handleAccept`, etc.) should not be polluted with edit state parameters.
-- **Rule:** Derive an `effectiveFinding` object at render time inside `.map()` loops. This object merges the base finding with any in-progress edits (overwriting `replacement_text`). 
-- Pass this `effectiveFinding` to the standard handlers so the downstream `word-context.ts` and backend API endpoints inherently receive the user's tweaked text without needing structural changes.
+- **Rule:** Derive an `effectiveFinding` object at render time inside `.map()` loops. This object merges the base finding with any in-progress edits (overwriting `replacement_text`), and can also inject missing data (like `formatting_fix` for layout rules). 
+- Pass this `effectiveFinding` to the standard handlers in `useFindingsActions.ts` so the downstream `word/` scripts and backend API endpoints inherently receive the user's tweaked text without needing structural changes.

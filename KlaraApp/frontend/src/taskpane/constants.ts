@@ -6,10 +6,17 @@ export const FINDING_STATUS = {
 
 export const RULE_NAMES = {
   FONT_CONSISTENCY: 'FONT CONSISTENCY',
+  PARAGRAPH_JUSTIFICATION: 'JUSTIFICATION',
+  TOA_COMPLETENESS: 'TOA COMPLETENESS',
 } as const;
+
+export const MANUAL_REVIEW_RULES = [
+  RULE_NAMES.TOA_COMPLETENESS,
+];
 
 export const FINDING_TYPES = {
   FONT: 'font',
+  ALIGNMENT: 'alignment',
 } as const;
 
 export const QUERY_KEYS = {

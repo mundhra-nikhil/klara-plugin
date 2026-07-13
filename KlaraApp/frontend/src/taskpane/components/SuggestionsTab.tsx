@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import type { QCFinding } from '../types';
 import { useFindingsActions } from '../hooks/useFindingsActions';
 import { SuggestionCard } from './SuggestionCard';
-import { FINDING_TYPES, MESSAGES, RULE_NAMES, REGEX_PATTERNS } from '../constants';
+import { FINDING_TYPES, MESSAGES, RULE_NAMES, REGEX_PATTERNS, MANUAL_REVIEW_RULES } from '../constants';
 
 interface SuggestionsTabProps {
   findings: QCFinding[];
@@ -43,23 +43,71 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
   }, [editDraft]);
 
   const effectiveFinding = useCallback((f: QCFinding): QCFinding => {
-    const replacement = getReplacement(f) || f.replacement_text;
+    let replacement = getReplacement(f) || f.replacement_text;
+    let description = f.description;
     let formatting_fix = f.formatting_fix;
     
-    // Inject formatting_fix for Font Consistency cards that only have text replacements
-    const isFontConsistency = f.rule_name?.toUpperCase().includes(RULE_NAMES.FONT_CONSISTENCY);
-    if (isFontConsistency && replacement && !formatting_fix) {
-       const match = replacement.match(REGEX_PATTERNS.NUMBERS_ONLY);
-       if (match) {
-         formatting_fix = {
-           type: FINDING_TYPES.FONT,
-           fontSize: parseInt(match[1], 10)
-         };
+    // Intercept manual review rules that the backend mistakenly sends as text replacements
+    const isManualReview = MANUAL_REVIEW_RULES.some(rule => f.rule_name?.toUpperCase().includes(rule));
+    if (isManualReview && replacement) {
+       // Append the instruction to the description so the user can read it
+       description = description ? `${description}\n\nInstruction: ${replacement}` : replacement;
+       // Clear the replacement text so we don't attempt a literal text replacement
+       replacement = undefined;
+    }
+    
+    // Generic Fallback Injector for Formatting Fixes
+    // If the backend sends text instructions instead of a structural formatting_fix, parse it here
+    if (replacement && !formatting_fix) {
+       const lowerReplacement = replacement.toLowerCase();
+
+       // Font Consistency
+       const isFontConsistency = f.rule_name?.toUpperCase().includes(RULE_NAMES.FONT_CONSISTENCY);
+       if (isFontConsistency) {
+         const match = replacement.match(REGEX_PATTERNS.NUMBERS_ONLY);
+         if (match) {
+           formatting_fix = { type: FINDING_TYPES.FONT as "font", fontSize: parseInt(match[1], 10) };
+         }
+       }
+       // Paragraph Justification / Alignment
+       else if (f.rule_name?.toUpperCase().includes(RULE_NAMES.PARAGRAPH_JUSTIFICATION) || lowerReplacement.includes('alignment') || lowerReplacement.includes('justified')) {
+         if (lowerReplacement.includes('fully justified') || lowerReplacement.includes('justified')) {
+           formatting_fix = { type: 'alignment', value: 'justified' };
+         } else if (lowerReplacement.includes('left')) {
+           formatting_fix = { type: 'alignment', value: 'left' };
+         } else if (lowerReplacement.includes('right')) {
+           formatting_fix = { type: 'alignment', value: 'right' };
+         } else if (lowerReplacement.includes('center')) {
+           formatting_fix = { type: 'alignment', value: 'center' };
+         }
+       }
+       // Line Spacing
+       else if (lowerReplacement.includes('line spacing')) {
+         const match = lowerReplacement.match(/(\d+\.?\d*)/);
+         if (match) {
+           formatting_fix = { type: 'line_spacing', value: parseFloat(match[1]) };
+         }
+       }
+       // Widow/Orphan Control
+       else if (lowerReplacement.includes('widow') || lowerReplacement.includes('orphan')) {
+         const enable = !lowerReplacement.includes('disable') && !lowerReplacement.includes('remove') && !lowerReplacement.includes('false');
+         formatting_fix = { type: 'widow_orphan_control', value: enable };
+       }
+       // Keep with Next
+       else if (lowerReplacement.includes('keep with next')) {
+         const enable = !lowerReplacement.includes('disable') && !lowerReplacement.includes('remove') && !lowerReplacement.includes('false');
+         formatting_fix = { type: 'keep_with_next', value: enable };
+       }
+       // Page Break Before
+       else if (lowerReplacement.includes('page break before')) {
+         const enable = !lowerReplacement.includes('disable') && !lowerReplacement.includes('remove') && !lowerReplacement.includes('false');
+         formatting_fix = { type: 'page_break_before', value: enable };
        }
     }
 
     return {
       ...f,
+      description,
       replacement_text: replacement,
       formatting_fix: formatting_fix
     };
