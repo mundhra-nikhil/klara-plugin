@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "start:backend": "cd backend && docker-compose -f docker/docker-compose.yml up",
+    "dev:infra": "concurrently \"npm run start:backend > .backend.log 2>&1\" \"cd frontend && npm run dev-server > ../.frontend.log 2>&1\"",
     "dev:all": "concurrently \"npm run start:backend > .backend.log 2>&1\" \"cd frontend && npm run dev-server > ../.frontend.log 2>&1\" \"cd frontend && npm start > ../.word.log 2>&1\"",
+    "register": "cd frontend && npx office-addin-dev-settings register manifest.xml",
+    "unregister": "cd frontend && npx office-addin-dev-settings unregister manifest.xml",
     "start": "cd frontend && npm start",
     "stop": "cd frontend && npm run stop",
     "build:dev": "cd frontend && npm run build:dev",

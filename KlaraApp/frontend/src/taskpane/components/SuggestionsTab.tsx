@@ -3,7 +3,7 @@ import type { QCFinding } from '../types';
 import type { TextReplacementResult, FormattingResult } from '../word';
 import { useQueryClient } from '@tanstack/react-query';
 import { qcApi } from '../api/qc';
-import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting, applyGlobalFormatting, createSimulatedTrackedChange, createSimulatedTrackedChangeInParagraph, acceptSimulatedTrackedChange, rejectSimulatedTrackedChange, undoSimulatedTrackedChange, undoDirectReplacement } from '../word';
+import { searchAndSelect, highlightRange, clearHighlights, replaceText, replaceTextInParagraph, selectParagraph, createKlaraComment, createKlaraCommentInParagraph, createKlaraCommentAtParagraph, applyParagraphFormatting, searchAndApplyFormatting, applyGlobalFormatting, createSimulatedTrackedChange, createSimulatedTrackedChangeInParagraph, acceptSimulatedTrackedChange, rejectSimulatedTrackedChange, undoSimulatedTrackedChange, undoDirectReplacement, undoFormatting } from '../word';
 
 const SEVERITY_COLORS: Record<string, string> = {
   critical: 'var(--danger)',
@@ -37,15 +37,34 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Record<string, string>>({});
+  const [localUndoStates, setLocalUndoStates] = useState<Record<string, any>>({});
 
   const getReplacement = useCallback((f: QCFinding) => {
     return editDraft[f.id] ?? f.replacement_text ?? f.suggested_fix ?? '';
   }, [editDraft]);
 
-  const effectiveFinding = useCallback((f: QCFinding): QCFinding => ({
-    ...f,
-    replacement_text: getReplacement(f) || f.replacement_text,
-  }), [getReplacement]);
+  const effectiveFinding = useCallback((f: QCFinding): QCFinding => {
+    const replacement = getReplacement(f) || f.replacement_text;
+    let formatting_fix = f.formatting_fix;
+    
+    // Inject formatting_fix for Font Consistency cards that only have text replacements
+    const isFontConsistency = f.rule_name?.toUpperCase().includes('FONT CONSISTENCY');
+    if (isFontConsistency && replacement && !formatting_fix) {
+       const match = replacement.match(/(\d+)/);
+       if (match) {
+         formatting_fix = {
+           type: "font",
+           fontSize: parseInt(match[1], 10)
+         };
+       }
+    }
+
+    return {
+      ...f,
+      replacement_text: replacement,
+      formatting_fix: formatting_fix
+    };
+  }, [getReplacement]);
 
   const startEdit = useCallback((f: QCFinding) => {
     setEditDraft((prev) => ({ ...prev, [f.id]: getReplacement(f) }));
@@ -296,8 +315,13 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
 
         await qcApi.resolveFinding(finding.id, {
           status: 'accepted',
-          resolution_notes: result.message,
+          resolution_notes: JSON.stringify({
+            message: result.message,
+            undo_state: result.previous_state
+          }),
         });
+        
+        setLocalUndoStates(prev => ({ ...prev, [finding.id]: result.previous_state }));
 
         console.log(`Finding ${finding.id} successfully accepted and formatting applied`);
 
@@ -513,11 +537,27 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
     setLoading(true);
     setError('');
     try {
-      if (acceptedIds.has(finding.id)) {
+      const isAccepted = finding.status === 'accepted' || acceptedIds.has(finding.id);
+      const isCommented = finding.status === 'deferred' || commentedIds.has(finding.id);
+
+      if (isAccepted) {
         if (finding.replacement_text && finding.original_text) {
           await undoDirectReplacement(finding.replacement_text, finding.original_text, finding.paragraph_index);
+        } else if (finding.formatting_fix) {
+          let undoState = localUndoStates[finding.id];
+          if (!undoState && finding.resolution_notes) {
+            try {
+              const parsedNotes = JSON.parse(finding.resolution_notes);
+              undoState = parsedNotes.undo_state;
+            } catch (e) {
+              console.error("Failed to parse resolution_notes for undo:", e);
+            }
+          }
+          if (undoState) {
+            await undoFormatting(undoState);
+          }
         }
-      } else if (commentedIds.has(finding.id)) {
+      } else if (isCommented) {
         if (finding.original_text) {
           await undoSimulatedTrackedChange(finding.id, finding.original_text);
         }
@@ -580,8 +620,12 @@ export function SuggestionsTab({ findings, docId }: SuggestionsTabProps) {
           if (result.success && result.applied) {
             await qcApi.resolveFinding(finding.id, {
               status: 'accepted',
-              resolution_notes: result.message,
+              resolution_notes: JSON.stringify({
+                message: result.message,
+                undo_state: result.previous_state
+              }),
             });
+            setLocalUndoStates(prev => ({ ...prev, [finding.id]: result.previous_state }));
             setAcceptedIds((prev) => new Set(prev).add(finding.id));
             setCommentedIds((prev) => {
               const next = new Set(prev);
@@ -833,6 +877,10 @@ function SuggestionCard({
   replacementText
 }: any) {
   const isRestrictedLocation = (finding.title + " " + (finding.description || "") + " " + (finding.location || "")).toLowerCase().match(/footnote|footer|header/);
+  const isFontConsistency = finding.rule_name?.toUpperCase().includes('FONT CONSISTENCY');
+  const isFontSizeFix = isFontConsistency && editValue?.toLowerCase().includes('font size');
+  const fontMatch = editValue?.match(/(\d+)/);
+  const fontSizeNum = fontMatch ? fontMatch[1] : '';
   
   return (
     <div
@@ -858,20 +906,41 @@ function SuggestionCard({
             <div className="klara-diff-del">− {finding.original_text}</div>
           )}
           {isEditing ? (
-            <div style={{ marginTop: 4 }}>
-              <textarea
-                className="klara-edit-textarea"
-                value={editValue}
-                onChange={(e) => onEditChange(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                autoFocus
-                onFocus={(e) => {
-                  const val = e.target.value;
-                  e.target.value = '';
-                  e.target.value = val;
-                }}
-              />
-            </div>
+            isFontSizeFix ? (
+              <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '13px', color: 'var(--fg)' }}>Set font size to:</span>
+                <input
+                  type="number"
+                  className="klara-input"
+                  style={{ width: '60px', padding: '4px 8px', fontSize: '13px' }}
+                  min="1"
+                  max="72"
+                  value={fontSizeNum}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const suffix = editValue.toLowerCase().includes('footnote') ? 'footnote font size' : 'font size';
+                    onEditChange(`Set the ${suffix} to ${val}pt.`);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <span style={{ fontSize: '13px', color: 'var(--fg)' }}>pt.</span>
+              </div>
+            ) : (
+              <div style={{ marginTop: 4 }}>
+                <textarea
+                  className="klara-edit-textarea"
+                  value={editValue}
+                  onChange={(e) => onEditChange(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  autoFocus
+                  onFocus={(e) => {
+                    const val = e.target.value;
+                    e.target.value = '';
+                    e.target.value = val;
+                  }}
+                />
+              </div>
+            )
           ) : (
             replacementText && (
               <div className="klara-diff-add">+ {replacementText}</div>

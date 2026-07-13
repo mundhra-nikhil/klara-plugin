@@ -10,6 +10,7 @@ export interface FormattingResult {
   message: string;
   paragraphIndex?: number;
   foundInDocument?: boolean;
+  previous_state?: any;
 }
 
 /**
@@ -27,6 +28,7 @@ export async function applyParagraphFormatting(
     let applied = false;
     let actualParagraphIndex = paragraphIndex;
     let foundInDoc = true;
+    let previousState: any = null;
 
     await Word.run(async (context) => {
       try {
@@ -70,6 +72,22 @@ export async function applyParagraphFormatting(
            applied = false;
         } else {
           const paragraphAny = targetParagraph as any;
+
+          paragraphAny.load(["keepWithNext", "pageBreakBefore", "widowControl", "lineSpacing", "alignment"]);
+          paragraphAny.font.load(["name", "size"]);
+          await context.sync();
+
+          previousState = {
+            type: "paragraph",
+            paragraphIndex: actualParagraphIndex,
+            keepWithNext: paragraphAny.keepWithNext,
+            pageBreakBefore: paragraphAny.pageBreakBefore,
+            widowControl: paragraphAny.widowControl,
+            lineSpacing: paragraphAny.lineSpacing,
+            alignment: paragraphAny.alignment,
+            fontName: paragraphAny.font.name,
+            fontSize: paragraphAny.font.size,
+          };
 
           const operations = Array.isArray(operation) ? operation : [operation];
           
@@ -159,6 +177,7 @@ export async function applyParagraphFormatting(
         console.error("Error inside Word.run for formatting:", wordError);
         message = `Word API error: ${wordError.message}`;
         applied = false;
+        throw wordError;
       }
     });
 
@@ -168,6 +187,7 @@ export async function applyParagraphFormatting(
       message,
       paragraphIndex: actualParagraphIndex,
       foundInDocument: foundInDoc,
+      previous_state: previousState,
     };
   } catch (e: any) {
     console.error("Failed to apply paragraph formatting:", e);
@@ -193,6 +213,7 @@ export async function searchAndApplyFormatting(
     let applied = false;
     let foundParagraphIndex: number | undefined = undefined;
     let foundInDoc = true;
+    let previousState: any = null;
 
     await Word.run(async (context) => {
       try {
@@ -201,8 +222,23 @@ export async function searchAndApplyFormatting(
 
         if (target) {
           const paragraphAny = target.paragraphs.getFirst() as any;
+          paragraphAny.load(["keepWithNext", "pageBreakBefore", "widowControl", "lineSpacing", "alignment"]);
+          paragraphAny.font.load(["name", "size"]);
+          await context.sync();
 
-            const operations = Array.isArray(operation) ? operation : [operation];
+          previousState = {
+            type: "search",
+            searchText: searchText,
+            keepWithNext: paragraphAny.keepWithNext,
+            pageBreakBefore: paragraphAny.pageBreakBefore,
+            widowControl: paragraphAny.widowControl,
+            lineSpacing: paragraphAny.lineSpacing,
+            alignment: paragraphAny.alignment,
+            fontName: paragraphAny.font.name,
+            fontSize: paragraphAny.font.size,
+          };
+
+          const operations = Array.isArray(operation) ? operation : [operation];
 
             for (const op of operations) {
               switch (op.type) {
@@ -293,6 +329,7 @@ export async function searchAndApplyFormatting(
         console.error("Error inside Word.run for search and format:", wordError);
         message = `Word API error: ${wordError.message}`;
         applied = false;
+        throw wordError;
       }
     });
 
@@ -302,6 +339,7 @@ export async function searchAndApplyFormatting(
       message,
       paragraphIndex: foundParagraphIndex,
       foundInDocument: foundInDoc,
+      previous_state: previousState,
     };
   } catch (e: any) {
     console.error("Failed to search and apply formatting:", e);
@@ -321,6 +359,7 @@ export async function applyGlobalFormatting(
     let message = "";
     let applied = false;
     let foundInDoc = false;
+    let previousState: any = null;
 
     await Word.run(async (context) => {
       try {
@@ -338,6 +377,27 @@ export async function applyGlobalFormatting(
              const fn = footnotes.items[i];
              const paragraphs = fn.body.paragraphs.items;
              
+             for (let j = 0; j < paragraphs.length; j++) {
+               (paragraphs[j] as any).font.load(["name", "size"]);
+             }
+          }
+          await context.sync();
+
+          const states: any[] = [];
+          for (let i = 0; i < footnotes.items.length; i++) {
+             const fn = footnotes.items[i];
+             const paragraphs = fn.body.paragraphs.items;
+             
+             for (let j = 0; j < paragraphs.length; j++) {
+               const font = (paragraphs[j] as any).font;
+               states.push({
+                 footnoteIndex: i,
+                 paragraphIndex: j,
+                 fontName: font.name,
+                 fontSize: font.size
+               });
+             }
+             
              const operations = Array.isArray(operation) ? operation : [operation];
              for (const op of operations) {
                if (op.type === "font" || op.type === "fontSize") {
@@ -349,10 +409,10 @@ export async function applyGlobalFormatting(
                  }
 
                  for (let j = 0; j < paragraphs.length; j++) {
-                   const paraRangeFont = paragraphs[j].getRange().font;
-                   if (op.fontName) paraRangeFont.name = op.fontName;
+                   const font = (paragraphs[j] as any).font;
+                   if (op.fontName) font.name = op.fontName;
                    if (parsedSize !== undefined && !isNaN(parsedSize)) {
-                     paraRangeFont.size = parsedSize;
+                     font.size = parsedSize;
                    }
                  }
                  applied = true;
@@ -360,6 +420,10 @@ export async function applyGlobalFormatting(
                }
              }
           }
+          previousState = {
+            type: "global_footnotes",
+            states
+          };
           if (applied) {
              message = `Applied formatting to ${footnotes.items.length} footnotes`;
           } else {
@@ -374,6 +438,7 @@ export async function applyGlobalFormatting(
         console.error("Error inside Word.run for global formatting:", wordError);
         message = `Word API error: ${wordError.message}`;
         foundInDoc = false;
+        throw wordError;
       }
     });
 
@@ -382,6 +447,7 @@ export async function applyGlobalFormatting(
       applied,
       message,
       foundInDocument: foundInDoc,
+      previous_state: previousState,
     };
   } catch (e: any) {
     console.error("Failed to apply global formatting:", e);
@@ -390,7 +456,82 @@ export async function applyGlobalFormatting(
       applied: false,
       message: `Failed to apply formatting: ${e.message || "Unknown error"}`,
       foundInDocument: false,
+      previous_state: null,
     };
+  }
+}
+
+/**
+ * Undoes a formatting operation using the previously saved state
+ */
+export async function undoFormatting(undoState: any): Promise<{ success: boolean; message: string }> {
+  try {
+    if (!undoState) {
+      return { success: false, message: "No undo state provided" };
+    }
+
+    await Word.run(async (context) => {
+      if (undoState.type === "paragraph") {
+        const paragraphs = context.document.body.paragraphs;
+        paragraphs.load("items");
+        await context.sync();
+        
+        if (undoState.paragraphIndex >= 0 && undoState.paragraphIndex < paragraphs.items.length) {
+          const targetParagraph = paragraphs.items[undoState.paragraphIndex];
+          const paragraphAny = targetParagraph as any;
+          if (undoState.keepWithNext !== undefined) paragraphAny.keepWithNext = undoState.keepWithNext;
+          if (undoState.pageBreakBefore !== undefined) paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
+          if (undoState.widowControl !== undefined) paragraphAny.widowControl = undoState.widowControl;
+          if (undoState.lineSpacing !== undefined) paragraphAny.lineSpacing = undoState.lineSpacing;
+          if (undoState.alignment !== undefined) paragraphAny.alignment = undoState.alignment;
+          
+          if (undoState.fontName) paragraphAny.font.name = undoState.fontName;
+          if (undoState.fontSize) paragraphAny.font.size = undoState.fontSize;
+        }
+      } else if (undoState.type === "search") {
+        const body = context.document.body;
+        const target = await searchRobust(body, undoState.searchText, 0, context);
+        if (target) {
+          const paragraphAny = target.paragraphs.getFirst() as any;
+          if (undoState.keepWithNext !== undefined) paragraphAny.keepWithNext = undoState.keepWithNext;
+          if (undoState.pageBreakBefore !== undefined) paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
+          if (undoState.widowControl !== undefined) paragraphAny.widowControl = undoState.widowControl;
+          if (undoState.lineSpacing !== undefined) paragraphAny.lineSpacing = undoState.lineSpacing;
+          if (undoState.alignment !== undefined) paragraphAny.alignment = undoState.alignment;
+          
+          if (undoState.fontName) paragraphAny.font.name = undoState.fontName;
+          if (undoState.fontSize) paragraphAny.font.size = undoState.fontSize;
+        }
+      } else if (undoState.type === "global_footnotes") {
+        const footnotes = context.document.body.footnotes;
+        if (footnotes) {
+          footnotes.load("items");
+          await context.sync();
+
+          for (let i = 0; i < footnotes.items.length; i++) {
+            footnotes.items[i].body.paragraphs.load("items");
+          }
+          await context.sync();
+
+          for (const state of undoState.states) {
+            if (state.footnoteIndex < footnotes.items.length) {
+              const paragraphs = footnotes.items[state.footnoteIndex].body.paragraphs.items;
+              if (state.paragraphIndex < paragraphs.length) {
+                const font = (paragraphs[state.paragraphIndex] as any).font;
+                if (state.fontName) font.name = state.fontName;
+                if (state.fontSize) font.size = state.fontSize;
+              }
+            }
+          }
+        }
+      }
+      await context.sync();
+    });
+
+    return { success: true, message: "Formatting reverted successfully" };
+  } catch (e: any) {
+    console.error("Failed to undo formatting:", e);
+    return { success: false, message: e.message || "Unknown error" };
   }
 }
 
