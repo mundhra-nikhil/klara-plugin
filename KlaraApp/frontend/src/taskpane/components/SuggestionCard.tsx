@@ -64,7 +64,7 @@ export function SuggestionCard({
       {finding.description && (
         <div className="klara-card-desc">{finding.description}</div>
       )}
-      {(finding.original_text || replacementText) && (
+      {(finding.original_text || replacementText || finding.template_data) && (
         <div className="klara-diff">
           {finding.original_text && (
             <div className="klara-diff-del">− {finding.original_text}</div>
@@ -106,7 +106,16 @@ export function SuggestionCard({
               </div>
             )
           ) : (
-            replacementText && (
+            finding.template_data && finding.template_data.template_type === 'toa_list' ? (
+              <div className="klara-diff-add" style={{ padding: '8px' }}>
+                <div style={{ fontWeight: '600', marginBottom: '6px', color: 'var(--text-main)' }}>Structured Updates:</div>
+                {finding.template_data.entries?.map((entry: any, i: number) => (
+                  <div key={i} style={{ marginLeft: '12px', marginBottom: '4px', lineHeight: '1.4' }}>
+                    <i>{entry.case_name}</i>, {entry.citation}
+                  </div>
+                ))}
+              </div>
+            ) : replacementText && (
               <div className="klara-diff-add">+ {replacementText}</div>
             )
           )}

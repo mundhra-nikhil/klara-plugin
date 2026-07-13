@@ -89,6 +89,7 @@ export interface QCFinding {
   resolved_at?: string;
   resolution_notes?: string;
   formatting_fix?: FormattingOperation;
+  template_data?: any;
 }
 
 export interface AIJob {

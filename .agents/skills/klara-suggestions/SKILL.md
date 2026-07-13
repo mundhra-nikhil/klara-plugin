@@ -1,6 +1,8 @@
 ---
 name: klara-suggestions
 description: Guidelines and architectural rules for debugging, modifying, or extending the Klara Suggestion Cards (SuggestionsTab.tsx) and Office.js integration (word-context.ts). Use this skill when working on the frontend Word add-in taskpane.
+when_to_use: "When working on or debugging the Klara Suggestion Cards frontend and Office.js integration."
+allowed-tools: Read, Glob, Grep, Bash, Write, Edit
 ---
 
 # Klara Suggestion Cards & Word Add-in Architecture

@@ -22,6 +22,7 @@ import {
   undoDirectReplacement,
   undoFormatting,
 } from "../word";
+import { applyTemplateFix } from "../word/templates";
 import { FINDING_STATUS, QUERY_KEYS, MESSAGES } from "../constants";
 
 export interface UseFindingsActionsProps {
@@ -129,6 +130,40 @@ export function useFindingsActions({ docId, findings, clearEdit }: UseFindingsAc
           await qcApi.resolveFinding(finding.id, {
             status: FINDING_STATUS.ACCEPTED,
             applied_text: replacement || "",
+          });
+
+          setAcceptedIds((prev) => new Set(prev).add(finding.id));
+          setRejectedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(finding.id);
+            return next;
+          });
+          setCommentedIds((prev) => {
+            const next = new Set(prev);
+            next.delete(finding.id);
+            return next;
+          });
+
+          setError("");
+          clearEdit(finding.id);
+          onRefresh();
+          return;
+        }
+
+        // If template_data exists, delegate to the structured template engine
+        if (finding.template_data) {
+          console.log(`Starting template insertion for finding ${finding.id}`);
+          const templateResult = await applyTemplateFix(finding, finding.template_data);
+          
+          if (!templateResult.success) {
+            setError(templateResult.message);
+            setLoading(false);
+            return;
+          }
+
+          await qcApi.resolveFinding(finding.id, {
+            status: FINDING_STATUS.ACCEPTED,
+            applied_text: "Applied structured template: " + finding.template_data.template_type,
           });
 
           setAcceptedIds((prev) => new Set(prev).add(finding.id));

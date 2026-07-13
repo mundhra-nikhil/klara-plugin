@@ -1,6 +1,8 @@
 ---
 name: docmancer
 description: How to correctly run the docmancer CLI in PowerShell to query context and fetch documentation without syntax errors.
+when_to_use: "When needing to query local documentation, fetch public docs, or get API references using docmancer CLI."
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Running Docmancer in PowerShell

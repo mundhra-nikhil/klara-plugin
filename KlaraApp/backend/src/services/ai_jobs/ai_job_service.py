@@ -60,6 +60,8 @@ You will receive paragraph-level metadata extracted from the .docx including:
   `rule_1_footnote_font` → Rule 1, `rule_1_body_font` → Rule 1, `rule_2_line_spacing` → Rule 2,
   `rule_4_mixed_quotes` → Rule 4, `rule_5_period_spacing` → Rule 5,
   `rule_6_justification` → Rule 6, `rule_7_orphan_heading` → Rule 7, `rule_8_section_symbol` → Rule 8.
+- For complex structural findings like Rule 11 (TOA completeness), do NOT output natural language instructions in `replacement_text`. Instead, output a `template_data` JSON object in this exact schema:
+  `{ "template_type": "toa_list", "entries": [ { "case_name": "...", "citation": "..." } ] }`
 - For each violation entry, set `location.paragraph` = the entry's `paragraph` field, set
   `location.anchor_text` = the entry's `snippet` (first 80 chars), and set `original_text` to the
   offending substring (e.g. the violating "§17200" or "granted.This").
