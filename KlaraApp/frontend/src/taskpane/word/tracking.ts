@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 import { replaceTextInParagraph } from "./replace";
 
 /**
@@ -29,8 +34,11 @@ export async function createSimulatedTrackedChange(
           target.font.color = "#FF0000";
 
           // Insert replacement text
-          const replacementRange = target.insertText(suggestedReplacement, Word.InsertLocation.after);
-          
+          const replacementRange = target.insertText(
+            suggestedReplacement,
+            Word.InsertLocation.after
+          );
+
           // Format replacement text
           replacementRange.font.color = "#0000FF";
           replacementRange.font.underline = Word.UnderlineType.single;
@@ -42,8 +50,10 @@ export async function createSimulatedTrackedChange(
           cc.tag = findingId;
 
           // Add a comment to the original selection
-          target.insertComment(`[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`);
-          
+          target.insertComment(
+            `[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`
+          );
+
           await context.sync();
           success = true;
           message = `Simulated tracked change created for ${findingId}`;
@@ -54,7 +64,10 @@ export async function createSimulatedTrackedChange(
       } catch (wordError: any) {
         console.error("Error creating simulated track change:", wordError);
         message = `Word API error: ${wordError.message}`;
-        if (wordError.code === "AccessDenied" || (wordError.message && wordError.message.includes("AccessDenied"))) {
+        if (
+          wordError.code === "AccessDenied" ||
+          (wordError.message && wordError.message.includes("AccessDenied"))
+        ) {
           foundInDoc = false;
           message = "Cannot add comments to this location (e.g., footnotes or headers).";
         }
@@ -100,7 +113,10 @@ export async function createSimulatedTrackedChangeInParagraph(
             target.font.strikeThrough = true;
             target.font.color = "#FF0000";
 
-            const replacementRange = target.insertText(suggestedReplacement, Word.InsertLocation.after);
+            const replacementRange = target.insertText(
+              suggestedReplacement,
+              Word.InsertLocation.after
+            );
             replacementRange.font.color = "#0000FF";
             replacementRange.font.underline = Word.UnderlineType.single;
 
@@ -109,8 +125,10 @@ export async function createSimulatedTrackedChangeInParagraph(
             cc.title = `Klara Suggestion: ${findingId}`;
             cc.tag = findingId;
 
-            target.insertComment(`[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`);
-            
+            target.insertComment(
+              `[Klara Suggestion] Replace "${originalText}" with "${replacementText}"\n\n${commentText}`
+            );
+
             await context.sync();
             success = true;
             message = `Simulated tracked change created in paragraph ${paragraphIndex}`;
@@ -125,7 +143,10 @@ export async function createSimulatedTrackedChangeInParagraph(
       } catch (wordError: any) {
         console.error("Error creating simulated track change:", wordError);
         message = `Word API error: ${wordError.message}`;
-        if (wordError.code === "AccessDenied" || (wordError.message && wordError.message.includes("AccessDenied"))) {
+        if (
+          wordError.code === "AccessDenied" ||
+          (wordError.message && wordError.message.includes("AccessDenied"))
+        ) {
           foundInDoc = false;
           message = "Cannot add comments to this location (e.g., footnotes or headers).";
         }
@@ -220,4 +241,3 @@ export async function undoSimulatedTrackedChange(
 ): Promise<{ success: boolean; message: string }> {
   return rejectSimulatedTrackedChange(findingId, originalText); // Functionally identical
 }
-

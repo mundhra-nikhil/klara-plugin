@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 import { FormattingOperation } from "../types";
 
 /**
@@ -40,12 +45,19 @@ export async function applyParagraphFormatting(
 
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
           targetParagraph = paragraphs.items[paragraphIndex];
-          
+
           if (expectedText) {
             const range = await searchWithVariations(targetParagraph, expectedText, 0);
             if (!range) {
-              console.warn(`Text not found in expected paragraph ${paragraphIndex}. Searching document...`);
-              const fallbackRange = await searchRobust(context.document.body, expectedText, 0, context);
+              console.warn(
+                `Text not found in expected paragraph ${paragraphIndex}. Searching document...`
+              );
+              const fallbackRange = await searchRobust(
+                context.document.body,
+                expectedText,
+                0,
+                context
+              );
               if (fallbackRange) {
                 targetParagraph = fallbackRange.paragraphs.getFirst();
                 actualParagraphIndex = -1; // Unknown index after global search, but we have the target
@@ -56,24 +68,30 @@ export async function applyParagraphFormatting(
             }
           }
         } else if (expectedText) {
-           const fallbackRange = await searchRobust(context.document.body, expectedText, 0, context);
-           if (fallbackRange) {
-             targetParagraph = fallbackRange.paragraphs.getFirst();
-             actualParagraphIndex = -1;
-           } else {
-             foundInDoc = false;
-           }
+          const fallbackRange = await searchRobust(context.document.body, expectedText, 0, context);
+          if (fallbackRange) {
+            targetParagraph = fallbackRange.paragraphs.getFirst();
+            actualParagraphIndex = -1;
+          } else {
+            foundInDoc = false;
+          }
         } else {
-           foundInDoc = false;
+          foundInDoc = false;
         }
 
         if (!targetParagraph) {
-           message = `Paragraph index ${paragraphIndex} out of range and text not found`;
-           applied = false;
+          message = `Paragraph index ${paragraphIndex} out of range and text not found`;
+          applied = false;
         } else {
           const paragraphAny = targetParagraph as any;
 
-          paragraphAny.load(["keepWithNext", "pageBreakBefore", "widowControl", "lineSpacing", "alignment"]);
+          paragraphAny.load([
+            "keepWithNext",
+            "pageBreakBefore",
+            "widowControl",
+            "lineSpacing",
+            "alignment",
+          ]);
           paragraphAny.font.load(["name", "size"]);
           await context.sync();
 
@@ -90,34 +108,41 @@ export async function applyParagraphFormatting(
           };
 
           const operations = Array.isArray(operation) ? operation : [operation];
-          
+
           for (const op of operations) {
             switch (op.type) {
               case "keep_with_next":
                 const keepVal = op.value === true || String(op.value).toLowerCase() === "true";
                 paragraphAny.keepWithNext = keepVal;
-                message += (message ? " | " : "") + (keepVal ? 'Enabled "Keep with next"' : 'Disabled "Keep with next"');
+                message +=
+                  (message ? " | " : "") +
+                  (keepVal ? 'Enabled "Keep with next"' : 'Disabled "Keep with next"');
                 applied = true;
                 break;
 
               case "page_break_before":
                 const pbVal = op.value === true || String(op.value).toLowerCase() === "true";
                 paragraphAny.pageBreakBefore = pbVal;
-                message += (message ? " | " : "") + (pbVal ? "Enabled page break before" : "Disabled page break before");
+                message +=
+                  (message ? " | " : "") +
+                  (pbVal ? "Enabled page break before" : "Disabled page break before");
                 applied = true;
                 break;
 
               case "widow_orphan_control":
                 const woVal = op.value === true || String(op.value).toLowerCase() === "true";
                 paragraphAny.widowControl = woVal;
-                message += (message ? " | " : "") + (woVal ? "Enabled widow/orphan control" : "Disabled widow/orphan control");
+                message +=
+                  (message ? " | " : "") +
+                  (woVal ? "Enabled widow/orphan control" : "Disabled widow/orphan control");
                 applied = true;
                 break;
 
               case "line_spacing":
-                const parsedLineSpacing = typeof op.value === 'string'
-                  ? parseInt(op.value.replace(/[^0-9.]/g, ''), 10)
-                  : op.value;
+                const parsedLineSpacing =
+                  typeof op.value === "string"
+                    ? parseInt(op.value.replace(/[^0-9.]/g, ""), 10)
+                    : op.value;
                 if (typeof parsedLineSpacing === "number" && !isNaN(parsedLineSpacing)) {
                   paragraphAny.lineSpacing = parsedLineSpacing;
                   message += (message ? " | " : "") + `Set line spacing to ${parsedLineSpacing}`;
@@ -135,8 +160,8 @@ export async function applyParagraphFormatting(
                   center: Word.Alignment.centered,
                   justified: Word.Alignment.justified,
                   justify: Word.Alignment.justified,
-                  'fully justified': Word.Alignment.justified,
-                  'fully-justified': Word.Alignment.justified,
+                  "fully justified": Word.Alignment.justified,
+                  "fully-justified": Word.Alignment.justified,
                   distributed: Word.Alignment.left, // fallback for distributed
                 };
 
@@ -155,14 +180,15 @@ export async function applyParagraphFormatting(
                   paragraphAny.font.name = op.fontName;
                 }
                 if (op.fontSize !== undefined) {
-                  const parsedSize = typeof op.fontSize === 'string'
-                    ? parseInt(op.fontSize.replace(/[^0-9.]/g, ''), 10)
-                    : op.fontSize;
+                  const parsedSize =
+                    typeof op.fontSize === "string"
+                      ? parseInt(op.fontSize.replace(/[^0-9.]/g, ""), 10)
+                      : op.fontSize;
                   if (!isNaN(parsedSize)) {
                     paragraphAny.font.size = parsedSize;
                   }
                 }
-                message += (message ? " | " : "") + `Changed font to ${op.fontName || 'new style'}`;
+                message += (message ? " | " : "") + `Changed font to ${op.fontName || "new style"}`;
                 applied = true;
                 break;
 
@@ -222,7 +248,13 @@ export async function searchAndApplyFormatting(
 
         if (target) {
           const paragraphAny = target.paragraphs.getFirst() as any;
-          paragraphAny.load(["keepWithNext", "pageBreakBefore", "widowControl", "lineSpacing", "alignment"]);
+          paragraphAny.load([
+            "keepWithNext",
+            "pageBreakBefore",
+            "widowControl",
+            "lineSpacing",
+            "alignment",
+          ]);
           paragraphAny.font.load(["name", "size"]);
           await context.sync();
 
@@ -240,86 +272,98 @@ export async function searchAndApplyFormatting(
 
           const operations = Array.isArray(operation) ? operation : [operation];
 
-            for (const op of operations) {
-              switch (op.type) {
-                case "keep_with_next":
-                  const keepVal = op.value === true || String(op.value).toLowerCase() === "true";
-                  paragraphAny.keepWithNext = keepVal;
-                  message += (message ? " | " : "") + (keepVal ? 'Enabled "Keep with next"' : 'Disabled "Keep with next"');
-                  applied = true;
-                  break;
+          for (const op of operations) {
+            switch (op.type) {
+              case "keep_with_next":
+                const keepVal = op.value === true || String(op.value).toLowerCase() === "true";
+                paragraphAny.keepWithNext = keepVal;
+                message +=
+                  (message ? " | " : "") +
+                  (keepVal ? 'Enabled "Keep with next"' : 'Disabled "Keep with next"');
+                applied = true;
+                break;
 
-                case "page_break_before":
-                  const pbVal = op.value === true || String(op.value).toLowerCase() === "true";
-                  paragraphAny.pageBreakBefore = pbVal;
-                  message += (message ? " | " : "") + (pbVal ? "Enabled page break before" : "Disabled page break before");
-                  applied = true;
-                  break;
+              case "page_break_before":
+                const pbVal = op.value === true || String(op.value).toLowerCase() === "true";
+                paragraphAny.pageBreakBefore = pbVal;
+                message +=
+                  (message ? " | " : "") +
+                  (pbVal ? "Enabled page break before" : "Disabled page break before");
+                applied = true;
+                break;
 
-                case "widow_orphan_control":
-                  const woVal = op.value === true || String(op.value).toLowerCase() === "true";
-                  paragraphAny.widowControl = woVal;
-                  message += (message ? " | " : "") + (woVal ? "Enabled widow/orphan control" : "Disabled widow/orphan control");
-                  applied = true;
-                  break;
+              case "widow_orphan_control":
+                const woVal = op.value === true || String(op.value).toLowerCase() === "true";
+                paragraphAny.widowControl = woVal;
+                message +=
+                  (message ? " | " : "") +
+                  (woVal ? "Enabled widow/orphan control" : "Disabled widow/orphan control");
+                applied = true;
+                break;
 
-                case "line_spacing":
-                  const parsedSearchLineSpacing = typeof op.value === 'string'
-                    ? parseInt(op.value.replace(/[^0-9.]/g, ''), 10)
+              case "line_spacing":
+                const parsedSearchLineSpacing =
+                  typeof op.value === "string"
+                    ? parseInt(op.value.replace(/[^0-9.]/g, ""), 10)
                     : op.value;
-                  if (typeof parsedSearchLineSpacing === "number" && !isNaN(parsedSearchLineSpacing)) {
-                    paragraphAny.lineSpacing = parsedSearchLineSpacing;
-                    message += (message ? " | " : "") + `Set line spacing to ${parsedSearchLineSpacing}`;
-                    applied = true;
-                  } else {
-                    message += (message ? " | " : "") + `Invalid line spacing value: ${op.value}`;
-                  }
-                  break;
-
-                case "alignment":
-                  const alignmentMap: Record<string, Word.Alignment> = {
-                    left: Word.Alignment.left,
-                    right: Word.Alignment.right,
-                    center: Word.Alignment.centered,
-                    justified: Word.Alignment.justified,
-                    justify: Word.Alignment.justified,
-                    'fully justified': Word.Alignment.justified,
-                    'fully-justified': Word.Alignment.justified,
-                    distributed: Word.Alignment.left, // fallback for distributed
-                  };
-
-                  const searchAlignValue = typeof op.value === "string" ? op.value.toLowerCase() : "";
-                  if (alignmentMap[searchAlignValue]) {
-                    paragraphAny.alignment = alignmentMap[searchAlignValue];
-                    message += (message ? " | " : "") + `Set alignment to ${op.value}`;
-                    applied = true;
-                  } else {
-                    message += (message ? " | " : "") + `Invalid alignment value: ${op.value}`;
-                  }
-                  break;
-
-                case "font":
-                  if (op.fontName) {
-                    paragraphAny.font.name = op.fontName;
-                  }
-                  if (op.fontSize !== undefined) {
-                    const parsedSize = typeof op.fontSize === 'string'
-                      ? parseInt(op.fontSize.replace(/[^0-9.]/g, ''), 10)
-                      : op.fontSize;
-                    if (!isNaN(parsedSize)) {
-                      paragraphAny.font.size = parsedSize;
-                    }
-                  }
-                  message += (message ? " | " : "") + `Changed font to ${op.fontName || 'new style'}`;
+                if (
+                  typeof parsedSearchLineSpacing === "number" &&
+                  !isNaN(parsedSearchLineSpacing)
+                ) {
+                  paragraphAny.lineSpacing = parsedSearchLineSpacing;
+                  message +=
+                    (message ? " | " : "") + `Set line spacing to ${parsedSearchLineSpacing}`;
                   applied = true;
-                  break;
+                } else {
+                  message += (message ? " | " : "") + `Invalid line spacing value: ${op.value}`;
+                }
+                break;
 
-                default:
-                  message += (message ? " | " : "") + `Unknown formatting operation type: ${op.type}`;
-              }
+              case "alignment":
+                const alignmentMap: Record<string, Word.Alignment> = {
+                  left: Word.Alignment.left,
+                  right: Word.Alignment.right,
+                  center: Word.Alignment.centered,
+                  justified: Word.Alignment.justified,
+                  justify: Word.Alignment.justified,
+                  "fully justified": Word.Alignment.justified,
+                  "fully-justified": Word.Alignment.justified,
+                  distributed: Word.Alignment.left, // fallback for distributed
+                };
+
+                const searchAlignValue = typeof op.value === "string" ? op.value.toLowerCase() : "";
+                if (alignmentMap[searchAlignValue]) {
+                  paragraphAny.alignment = alignmentMap[searchAlignValue];
+                  message += (message ? " | " : "") + `Set alignment to ${op.value}`;
+                  applied = true;
+                } else {
+                  message += (message ? " | " : "") + `Invalid alignment value: ${op.value}`;
+                }
+                break;
+
+              case "font":
+                if (op.fontName) {
+                  paragraphAny.font.name = op.fontName;
+                }
+                if (op.fontSize !== undefined) {
+                  const parsedSize =
+                    typeof op.fontSize === "string"
+                      ? parseInt(op.fontSize.replace(/[^0-9.]/g, ""), 10)
+                      : op.fontSize;
+                  if (!isNaN(parsedSize)) {
+                    paragraphAny.font.size = parsedSize;
+                  }
+                }
+                message += (message ? " | " : "") + `Changed font to ${op.fontName || "new style"}`;
+                applied = true;
+                break;
+
+              default:
+                message += (message ? " | " : "") + `Unknown formatting operation type: ${op.type}`;
             }
+          }
 
-            await context.sync();
+          await context.sync();
         } else {
           message = `Could not find paragraph containing "${searchText}"`;
           applied = false;
@@ -367,67 +411,68 @@ export async function applyGlobalFormatting(
           const footnotes = context.document.body.footnotes;
           footnotes.load("items");
           await context.sync();
-          
+
           for (let i = 0; i < footnotes.items.length; i++) {
-             footnotes.items[i].body.paragraphs.load("items");
+            footnotes.items[i].body.paragraphs.load("items");
           }
           await context.sync();
 
           for (let i = 0; i < footnotes.items.length; i++) {
-             const fn = footnotes.items[i];
-             const paragraphs = fn.body.paragraphs.items;
-             
-             for (let j = 0; j < paragraphs.length; j++) {
-               (paragraphs[j] as any).font.load(["name", "size"]);
-             }
+            const fn = footnotes.items[i];
+            const paragraphs = fn.body.paragraphs.items;
+
+            for (let j = 0; j < paragraphs.length; j++) {
+              (paragraphs[j] as any).font.load(["name", "size"]);
+            }
           }
           await context.sync();
 
           const states: any[] = [];
           for (let i = 0; i < footnotes.items.length; i++) {
-             const fn = footnotes.items[i];
-             const paragraphs = fn.body.paragraphs.items;
-             
-             for (let j = 0; j < paragraphs.length; j++) {
-               const font = (paragraphs[j] as any).font;
-               states.push({
-                 footnoteIndex: i,
-                 paragraphIndex: j,
-                 fontName: font.name,
-                 fontSize: font.size
-               });
-             }
-             
-             const operations = Array.isArray(operation) ? operation : [operation];
-             for (const op of operations) {
-               if (op.type === "font" || op.type === "fontSize") {
-                 let parsedSize: number | undefined;
-                 if (op.fontSize !== undefined) {
-                   parsedSize = typeof op.fontSize === 'string' 
-                     ? parseInt(op.fontSize.replace(/[^0-9.]/g, ''), 10) 
-                     : op.fontSize;
-                 }
+            const fn = footnotes.items[i];
+            const paragraphs = fn.body.paragraphs.items;
 
-                 for (let j = 0; j < paragraphs.length; j++) {
-                   const font = (paragraphs[j] as any).font;
-                   if (op.fontName) font.name = op.fontName;
-                   if (parsedSize !== undefined && !isNaN(parsedSize)) {
-                     font.size = parsedSize;
-                   }
-                 }
-                 applied = true;
-                 foundInDoc = true;
-               }
-             }
+            for (let j = 0; j < paragraphs.length; j++) {
+              const font = (paragraphs[j] as any).font;
+              states.push({
+                footnoteIndex: i,
+                paragraphIndex: j,
+                fontName: font.name,
+                fontSize: font.size,
+              });
+            }
+
+            const operations = Array.isArray(operation) ? operation : [operation];
+            for (const op of operations) {
+              if (op.type === "font" || op.type === "fontSize") {
+                let parsedSize: number | undefined;
+                if (op.fontSize !== undefined) {
+                  parsedSize =
+                    typeof op.fontSize === "string"
+                      ? parseInt(op.fontSize.replace(/[^0-9.]/g, ""), 10)
+                      : op.fontSize;
+                }
+
+                for (let j = 0; j < paragraphs.length; j++) {
+                  const font = (paragraphs[j] as any).font;
+                  if (op.fontName) font.name = op.fontName;
+                  if (parsedSize !== undefined && !isNaN(parsedSize)) {
+                    font.size = parsedSize;
+                  }
+                }
+                applied = true;
+                foundInDoc = true;
+              }
+            }
           }
           previousState = {
             type: "global_footnotes",
-            states
+            states,
           };
           if (applied) {
-             message = `Applied formatting to ${footnotes.items.length} footnotes`;
+            message = `Applied formatting to ${footnotes.items.length} footnotes`;
           } else {
-             message = `No formatting applied to footnotes`;
+            message = `No formatting applied to footnotes`;
           }
           await context.sync();
         } else {
@@ -464,7 +509,9 @@ export async function applyGlobalFormatting(
 /**
  * Undoes a formatting operation using the previously saved state
  */
-export async function undoFormatting(undoState: any): Promise<{ success: boolean; message: string }> {
+export async function undoFormatting(
+  undoState: any
+): Promise<{ success: boolean; message: string }> {
   try {
     if (!undoState) {
       return { success: false, message: "No undo state provided" };
@@ -475,16 +522,19 @@ export async function undoFormatting(undoState: any): Promise<{ success: boolean
         const paragraphs = context.document.body.paragraphs;
         paragraphs.load("items");
         await context.sync();
-        
+
         if (undoState.paragraphIndex >= 0 && undoState.paragraphIndex < paragraphs.items.length) {
           const targetParagraph = paragraphs.items[undoState.paragraphIndex];
           const paragraphAny = targetParagraph as any;
-          if (undoState.keepWithNext !== undefined) paragraphAny.keepWithNext = undoState.keepWithNext;
-          if (undoState.pageBreakBefore !== undefined) paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
-          if (undoState.widowControl !== undefined) paragraphAny.widowControl = undoState.widowControl;
+          if (undoState.keepWithNext !== undefined)
+            paragraphAny.keepWithNext = undoState.keepWithNext;
+          if (undoState.pageBreakBefore !== undefined)
+            paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
+          if (undoState.widowControl !== undefined)
+            paragraphAny.widowControl = undoState.widowControl;
           if (undoState.lineSpacing !== undefined) paragraphAny.lineSpacing = undoState.lineSpacing;
           if (undoState.alignment !== undefined) paragraphAny.alignment = undoState.alignment;
-          
+
           if (undoState.fontName) paragraphAny.font.name = undoState.fontName;
           if (undoState.fontSize) paragraphAny.font.size = undoState.fontSize;
         }
@@ -493,12 +543,15 @@ export async function undoFormatting(undoState: any): Promise<{ success: boolean
         const target = await searchRobust(body, undoState.searchText, 0, context);
         if (target) {
           const paragraphAny = target.paragraphs.getFirst() as any;
-          if (undoState.keepWithNext !== undefined) paragraphAny.keepWithNext = undoState.keepWithNext;
-          if (undoState.pageBreakBefore !== undefined) paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
-          if (undoState.widowControl !== undefined) paragraphAny.widowControl = undoState.widowControl;
+          if (undoState.keepWithNext !== undefined)
+            paragraphAny.keepWithNext = undoState.keepWithNext;
+          if (undoState.pageBreakBefore !== undefined)
+            paragraphAny.pageBreakBefore = undoState.pageBreakBefore;
+          if (undoState.widowControl !== undefined)
+            paragraphAny.widowControl = undoState.widowControl;
           if (undoState.lineSpacing !== undefined) paragraphAny.lineSpacing = undoState.lineSpacing;
           if (undoState.alignment !== undefined) paragraphAny.alignment = undoState.alignment;
-          
+
           if (undoState.fontName) paragraphAny.font.name = undoState.fontName;
           if (undoState.fontSize) paragraphAny.font.size = undoState.fontSize;
         }
@@ -534,4 +587,3 @@ export async function undoFormatting(undoState: any): Promise<{ success: boolean
     return { success: false, message: e.message || "Unknown error" };
   }
 }
-

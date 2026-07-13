@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 
 /**
  * Result type for text replacement operations
@@ -323,13 +328,13 @@ export async function undoDirectReplacement(
         paragraphs.load("items");
         await context.sync();
         if (paragraphIndex >= 0 && paragraphIndex < paragraphs.items.length) {
-           target = await searchWithVariations(paragraphs.items[paragraphIndex], replacementText, 0);
+          target = await searchWithVariations(paragraphs.items[paragraphIndex], replacementText, 0);
         }
       }
       if (!target) {
-         target = await searchWithVariations(context.document.body, replacementText, 0);
+        target = await searchWithVariations(context.document.body, replacementText, 0);
       }
-      
+
       if (target) {
         target.insertText(originalText, "Replace");
         await context.sync();
@@ -346,4 +351,3 @@ export async function undoDirectReplacement(
     return { success: false, message: e.message || "Unknown error" };
   }
 }
-

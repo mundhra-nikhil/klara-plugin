@@ -1,4 +1,3 @@
-
 /**
  * Generate multiple search variations for special characters
  * This helps handle different Unicode representations and encoding issues
@@ -100,7 +99,7 @@ export function generateSearchVariations(text: string): string[] {
   // We escape Word's reserved wildcard chars, then replace all spaces with '*' to match across paragraphs.
   if (text.length > 15 && text.length < 200) {
     // Word wildcard reserved chars: \ ( ) [ ] { } < > * ? @
-    const escaped = text.replace(/([\\()\[\]{}<>*?@])/g, '\\$1');
+    const escaped = text.replace(/([\\()\[\]{}<>*?@])/g, "\\$1");
     const starVariation = escaped.replace(/\s+/g, "*");
     if (starVariation !== escaped && starVariation.length < 255) {
       variations.push(starVariation);
@@ -206,18 +205,25 @@ export async function searchRobust(
       try {
         (context as any).load(startParagraph, "styleBuiltIn");
         await context.sync();
-        console.log(`[KLARA-NAV] startParagraph styleBuiltIn: ${(startParagraph as any).styleBuiltIn}`);
+        console.log(
+          `[KLARA-NAV] startParagraph styleBuiltIn: ${(startParagraph as any).styleBuiltIn}`
+        );
       } catch (diagErr) {
         console.warn(`[KLARA-NAV] styleBuiltIn check failed:`, diagErr);
       }
     }
 
-    // Split by whitespace instead of stripRegex so that we preserve trailing punctuation 
+    // Split by whitespace instead of stripRegex so that we preserve trailing punctuation
     // like ')' in '1998)'. searchWithVariations already handles punctuation fallbacks.
-    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    const words = text
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0);
     if (words.length > 0) {
-      const startWord = words.find(w => w.replace(/[^a-zA-Z0-9]/g, '').length >= 4) || words[0];
-      const endWord = [...words].reverse().find(w => w.replace(/[^a-zA-Z0-9]/g, '').length >= 4) || words[words.length - 1];
+      const startWord = words.find((w) => w.replace(/[^a-zA-Z0-9]/g, "").length >= 4) || words[0];
+      const endWord =
+        [...words].reverse().find((w) => w.replace(/[^a-zA-Z0-9]/g, "").length >= 4) ||
+        words[words.length - 1];
 
       const startTarget = await searchWithVariations(startParagraph, startWord, 0);
       const endTarget = await searchWithVariations(endParagraph, endWord, -1);
@@ -354,6 +360,10 @@ export async function searchWithVariations(
 const KLARA_DEBUG_NAV = false;
 export function isNormalizedMatch(str1: string, str2: string): boolean {
   if (!str1 || !str2) return str1 === str2;
-  const normalize = (s: string) => s.replace(/[\r\n]+/g, '\n').replace(/\s+/g, ' ').trim();
+  const normalize = (s: string) =>
+    s
+      .replace(/[\r\n]+/g, "\n")
+      .replace(/\s+/g, " ")
+      .trim();
   return normalize(str1) === normalize(str2);
 }

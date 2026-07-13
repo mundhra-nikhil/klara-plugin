@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 
 export async function getDocumentMetadata(): Promise<{ title: string; author: string }> {
   try {
@@ -177,4 +182,3 @@ export async function testWordApiAvailability(): Promise<{
     };
   }
 }
-

@@ -10,7 +10,9 @@
     "start": "cd frontend && npm start",
     "stop": "cd frontend && npm run stop",
     "build:dev": "cd frontend && npm run build:dev",
-    "build": "cd frontend && npm run build"
+    "build": "cd frontend && npm run build",
+    "lint": "cd frontend && npm run lint",
+    "typecheck": "cd frontend && npm run typecheck"
   },
   "devDependencies": {
     "concurrently": "^10.0.3"

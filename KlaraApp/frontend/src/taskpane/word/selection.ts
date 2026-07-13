@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 
 export async function searchAndSelect(
   text: string,
@@ -28,7 +33,7 @@ export async function searchAndSelect(
 
       if (target) {
         try {
-          // Workaround: Force a selection change to ensure Word updates the viewport and regains focus, 
+          // Workaround: Force a selection change to ensure Word updates the viewport and regains focus,
           // avoiding the "deselect" bug when reclicking the same card.
           const startRange = target.getRange("Start");
           startRange.select();
@@ -38,42 +43,45 @@ export async function searchAndSelect(
           await context.sync();
           finalRange = target;
         } catch (selectionError: any) {
-          console.warn("Precise selection failed, attempting safe paragraph fallback:", selectionError);
+          console.warn(
+            "Precise selection failed, attempting safe paragraph fallback:",
+            selectionError
+          );
           errorMessage = selectionError.message || "Unknown selection error";
-          
+
           try {
             // Re-run Word.run because context might be poisoned by the error
             // Actually, we can't easily re-run Word.run for target inside this block without losing 'target'.
-            // Wait, in Office.js, if a batch fails, the context is ruined. 
-          } catch(e) {}
+            // Wait, in Office.js, if a batch fails, the context is ruined.
+          } catch (e) {}
         }
       }
     });
-    
+
     // If the batch failed, we do a completely separate safe search outside the ruined context
     if (errorMessage && !finalRange) {
-        await Word.run(async (safeContext) => {
-            const body = safeContext.document.body;
-            let target = await searchRobust(body, text, occurrence, safeContext);
-            if (target) {
-                const paragraphs = target.paragraphs;
-                paragraphs.load("items");
-                await safeContext.sync();
-                if (paragraphs.items.length > 0) {
-                    const startPara = paragraphs.items[0];
-                    const endPara = paragraphs.items[paragraphs.items.length - 1];
-                    const safeRange = startPara.getRange("Start").expandTo(endPara.getRange("End"));
-                    
-                    const startSafeRange = safeRange.getRange("Start");
-                    startSafeRange.select();
-                    await safeContext.sync();
+      await Word.run(async (safeContext) => {
+        const body = safeContext.document.body;
+        let target = await searchRobust(body, text, occurrence, safeContext);
+        if (target) {
+          const paragraphs = target.paragraphs;
+          paragraphs.load("items");
+          await safeContext.sync();
+          if (paragraphs.items.length > 0) {
+            const startPara = paragraphs.items[0];
+            const endPara = paragraphs.items[paragraphs.items.length - 1];
+            const safeRange = startPara.getRange("Start").expandTo(endPara.getRange("End"));
 
-                    safeRange.select();
-                    await safeContext.sync();
-                    finalRange = safeRange;
-                }
-            }
-        });
+            const startSafeRange = safeRange.getRange("Start");
+            startSafeRange.select();
+            await safeContext.sync();
+
+            safeRange.select();
+            await safeContext.sync();
+            finalRange = safeRange;
+          }
+        }
+      });
     }
 
     return { range: finalRange, error: errorMessage };
@@ -144,4 +152,3 @@ export async function clearHighlights(): Promise<void> {
     // ignore
   }
 }
-

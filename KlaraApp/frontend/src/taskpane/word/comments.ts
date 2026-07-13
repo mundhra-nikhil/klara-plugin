@@ -1,4 +1,9 @@
-import { searchRobust, searchWithVariations, isNormalizedMatch, generateSearchVariations } from "./utils";
+import {
+  searchRobust,
+  searchWithVariations,
+  isNormalizedMatch,
+  generateSearchVariations,
+} from "./utils";
 
 /**
  * Test if Word API is available and working properly
@@ -41,7 +46,10 @@ export async function createKlaraComment(
       } catch (wordError: any) {
         console.error("Error inside Word.run for comment creation:", wordError);
         message = `Word API error: ${wordError.message}`;
-        if (wordError.code === "AccessDenied" || (wordError.message && wordError.message.includes("AccessDenied"))) {
+        if (
+          wordError.code === "AccessDenied" ||
+          (wordError.message && wordError.message.includes("AccessDenied"))
+        ) {
           foundInDoc = false;
           message = "Cannot add comments to this location (e.g., footnotes or headers).";
         }
@@ -111,7 +119,10 @@ export async function createKlaraCommentInParagraph(
       } catch (wordError: any) {
         console.error("Error inside Word.run for comment creation:", wordError);
         message = `Word API error: ${wordError.message}`;
-        if (wordError.code === "AccessDenied" || (wordError.message && wordError.message.includes("AccessDenied"))) {
+        if (
+          wordError.code === "AccessDenied" ||
+          (wordError.message && wordError.message.includes("AccessDenied"))
+        ) {
           foundInDoc = false;
           message = "Cannot add comments to this location (e.g., footnotes or headers).";
         }
@@ -170,7 +181,10 @@ export async function createKlaraCommentAtParagraph(
       } catch (wordError: any) {
         console.error("Error inside Word.run for comment creation at paragraph:", wordError);
         message = `Word API error: ${wordError.message}`;
-        if (wordError.code === "AccessDenied" || (wordError.message && wordError.message.includes("AccessDenied"))) {
+        if (
+          wordError.code === "AccessDenied" ||
+          (wordError.message && wordError.message.includes("AccessDenied"))
+        ) {
           foundInDoc = false;
           message = "Cannot add comments to this location (e.g., footnotes or headers).";
         }
@@ -191,4 +205,3 @@ export async function createKlaraCommentAtParagraph(
     };
   }
 }
-

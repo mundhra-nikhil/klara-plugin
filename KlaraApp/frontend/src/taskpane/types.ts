@@ -56,7 +56,12 @@ export interface Finding {
 
 export interface FormattingOperation {
   type:
-    "keep_with_next" | "page_break_before" | "widow_orphan_control" | "line_spacing" | "alignment" | "font";
+    | "keep_with_next"
+    | "page_break_before"
+    | "widow_orphan_control"
+    | "line_spacing"
+    | "alignment"
+    | "font";
   value?: boolean | number | string;
   description?: string;
   fontName?: string;
